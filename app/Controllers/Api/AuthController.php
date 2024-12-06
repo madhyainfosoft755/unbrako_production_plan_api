@@ -166,8 +166,9 @@ class AuthController extends ResourceController
         }
 
         // Check User Details
+        $requestedEmail = $this->request->getVar("email");
         $credentials = [
-            "email" => $this->request->getVar("email"),
+            "email" => $requestedEmail,
             "password" => $this->request->getVar("password")
         ];
 
@@ -199,9 +200,12 @@ class AuthController extends ResourceController
                 $raw_token = $tokenInfo->raw_token;
 
                 return $this->respond([
-                    "status" => true,
-                    "message" => "User logged in",
-                    "token" => $raw_token
+                    "token" => $raw_token,
+                    "id" => auth()->user()->id,
+                    "email" => $requestedEmail,
+                    "emp_id" => auth()->user()->emp_id,
+                    "role" => auth()->user()->role,
+                    "name" => auth()->user()->name
                 ]);
             }
         } catch (Exception $ex){
