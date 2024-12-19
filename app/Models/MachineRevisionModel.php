@@ -15,6 +15,7 @@ class MachineRevisionModel extends Model
     protected $allowedFields    = [
         "machine",
         "name",
+        "disabled",
         "created_by",
         "updated_by"
     ];

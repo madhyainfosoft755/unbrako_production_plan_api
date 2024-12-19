@@ -6,22 +6,15 @@ use CodeIgniter\Model;
 
 class MachineMasterModel extends Model
 {
-    protected $table            = 'machine_master';
+    protected $table            = 'machine_module_master';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $useSoftDeletes   = false;
     protected $protectFields    = true;
     protected $allowedFields    = [
-        "process", //
-        "product",
-        "machine", //
-        "no_of_mc", //
-        "machine_1",
-        "responsible", //
         "module", //
-        "speed",
-        "no_of_shift",
+        "machine_rev",
         "created_by",
         "updated_by"
     ];
@@ -41,24 +34,12 @@ class MachineMasterModel extends Model
 
     // Validation
     protected $validationRules      = [
-        "process"=> 'required',
-        "no_of_mc"=> 'required',
-        "machine"=> 'required',
-        "responsible"=> 'required',
-        "module"=> 'required'
+        "module"=> 'required',
+        "machine_rev"=> 'required'
     ];
     protected $validationMessages   = [
-        'no_of_mc'      => [
-            'required' => 'Count is required'
-        ],
-        'process'      => [
-            'required' => 'Module is required'
-        ],
-        'machine'      => [
-            'required' => 'Name is required'
-        ],
-        'responsible'      => [
-            'required' => 'Name is required'
+        'machine_rev'      => [
+            'required' => 'Machine is required'
         ],
         'module'      => [
             'required' => 'Name is required'

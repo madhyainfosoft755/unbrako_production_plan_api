@@ -87,6 +87,8 @@ class AuthController extends ResourceController
         $entityObject = new User([
             "name" => $this->request->getVar("name"),
             "email" => $this->request->getVar("email"),
+            "email_add" => $this->request->getVar("email"),
+            "salutation" => $this->request->getVar("salutation"),
             "emp_id" => $this->request->getVar("emp_id"),
             "password" => $this->request->getVar("password"),
             "role"=> $this->request->getVar("role"),
@@ -286,5 +288,120 @@ class AuthController extends ResourceController
             "message" => "User logged out"
         ]);
     }
+
+
+    /**
+     * @OA\Post(
+     *    path="/api/change-password",
+     *    summary="Change User Password",
+     *    @OA\RequestBody(
+     *      required=true,
+     *      @OA\JsonContent(
+     *         type="object",
+     *         @OA\Property(property="current_password", type="string", format="password", example="123456"),
+     *         @OA\Property(property="new_password", type="string", format="password", example="newpassword123")
+     *      )
+     *    ),
+     *    @OA\Response(
+     *       response=200,
+     *       description="Password changed successfully",
+     *       @OA\JsonContent(
+     *          @OA\Property(property="status", type="boolean", example=true),
+     *          @OA\Property(property="message", type="string", example="Password updated successfully")
+     *       )
+     *    ),
+     *    @OA\Response(
+     *       response=400,
+     *       description="Invalid current password or other errors",
+     *       @OA\JsonContent(
+     *          @OA\Property(property="status", type="boolean", example=false),
+     *          @OA\Property(property="message", type="string", example="Password update failed")
+     *       )
+     *    )
+     * )
+     */
+    public function changePassword()
+    {
+        $validationRules = [
+            "current_password" => "required",
+            "new_password" => "required|min_length[8]"
+        ];
+
+        if (!$this->validate($validationRules)) {
+            return $this->respond([
+                "status" => false,
+                "message" => "Password update failed",
+                "errors" => $this->validator->getErrors()
+            ], 400);
+        }
+
+        $currentPassword = $this->request->getVar("current_password");
+        $newPassword = $this->request->getVar("new_password");
+        $user = auth()->user();
+
+        if (!password_verify($currentPassword, '3b669eeb0e42a8a499d9b5f89958d8490729993a1a41b0fb4133a8d90439b877')) {
+            // log_message('debug', 'User object: ' . print_r($user, true));
+            log_message('debug', 'Stored password: ' . $user->secret);
+            log_message('debug', 'Input password: ' . $currentPassword);
+            return $this->respond([
+                "status" => false,
+                "message" => "Current password is incorrect"
+            ], 400);
+        }
+
+        $user->password = $newPassword;
+
+        $userModel = new UserModel();
+        if ($userModel->save($user)) {
+            return $this->respond([
+                "status" => true,
+                "message" => "Password updated successfully"
+            ]);
+        }
+
+        return $this->respond([
+            "status" => false,
+            "message" => "Password update failed"
+        ], 400);
+    }
+
+
+    /**
+     * @OA\Get(
+     *    path="/api/users",
+     *    summary="Get All Users",
+     *    @OA\Response(
+     *       response=200,
+     *       description="List of all users",
+     *       @OA\JsonContent(
+     *          @OA\Property(property="status", type="boolean", example=true),
+     *          @OA\Property(property="message", type="string", example="Users retrieved successfully"),
+     *          @OA\Property(property="data", type="array", @OA\Items(type="object"))
+     *       )
+     *    ),
+     *    @OA\Response(
+     *       response=403,
+     *       description="Unauthorized - Admin access required",
+     *       @OA\JsonContent(
+     *          @OA\Property(property="status", type="boolean", example=false),
+     *          @OA\Property(property="message", type="string", example="Forbidden")
+     *       )
+     *    )
+     * )
+     */
+    public function getAllUsers()
+    {
+
+        $userModel = new UserModel();
+        $users = $userModel->findAll();
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Users retrieved successfully",
+            "data" => $users
+        ]);
+    }
+
+
 
 }

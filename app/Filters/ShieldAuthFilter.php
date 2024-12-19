@@ -28,7 +28,7 @@ class ShieldAuthFilter implements FilterInterface
     {
         if(!auth("tokens")->loggedIn()){
 
-            return Services::response()->setStatusCode(400)->setJSON([
+            return Services::response()->setStatusCode(401)->setJSON([
                 "status" => false,
                 "message" => "Unauthorized Access"
             ]);

@@ -48,7 +48,7 @@ class PlantController extends ResourceController
     }
 
     public function getAllPlant(){
-        $plant = $this->plantModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $plant = $this->plantModel->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $plant

@@ -47,7 +47,7 @@ class Seg3Controller extends ResourceController
     }
 
     public function getAllSeg3(){
-        $seg3 = $this->seg3Model->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $seg3 = $this->seg3Model->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $seg3

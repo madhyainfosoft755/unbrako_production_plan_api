@@ -7,16 +7,19 @@ use CodeIgniter\RESTful\ResourceController;
 
 use App\Models\MachineMasterModel;
 use CodeIgniter\API\ResponseTrait;
+use App\Models\MachineShifts;
 
 class MachineMasterController extends ResourceController
 {
     use ResponseTrait;
 
     protected $machineModel;
+    protected $machineShifts;
 
     public function __construct()
     {
         $this->machineModel = new MachineMasterModel();
+        $this->machineShifts = new MachineShifts();
     }
 
     // Create Machine [POST]
@@ -62,21 +65,48 @@ class MachineMasterController extends ResourceController
     // Get all Machines [GET]
     public function getAllMachineMaster()
     {
-        $machines = $this->machineModel->select('machine_master.id, process.name as process, machines.name as machine, machine_revisions.name as machine_1, users.name as responsible, modules.name as module, machine_master.no_of_mc, machine_master.speed, machine_master.no_of_shift')
-            ->join('process', 'process.id = machine_master.process')
-            ->join('machines', 'machines.id = machine_master.machine')
-            ->join('machine_revisions', 'machine_revisions.id = machine_master.machine_1', 'left')
-            ->join('users', 'users.id = machine_master.responsible')
-            ->join('modules', 'modules.id = machine_master.module')
-            ->orderBy('machine_master.process', 'ASC')
-            ->get()
-            ->getResultArray();
+        // $machines = $this->machineModel->select('machine_master.id, process.name as process, machines.name as machine, machine_revisions.name as machine_1, users.name as responsible, modules.name as module, machine_master.no_of_mc, machine_master.speed, machine_master.no_of_shift')
+        //     ->join('process', 'process.id = machine_master.process')
+        //     ->join('machines', 'machines.id = machine_master.machine')
+        //     ->join('machine_revisions', 'machine_revisions.id = machine_master.machine_1', 'left')
+        //     ->join('users', 'users.id = machine_master.responsible')
+        //     ->join('modules', 'modules.id = machine_master.module')
+        //     ->orderBy('machine_master.process', 'ASC')
+        //     ->get()
+        //     ->getResultArray();
 
-        if ($machines) {
+        $machines = $this->machineModel->select('machine_module_master.id, 
+                machines.name as machine_name, 
+                machine_revisions.name as machine_1, 
+                machine_revisions.id as machine_rev_id, 
+                machines.speed as speed, 
+                machines.no_of_mc as no_of_mc, 
+                process.name as process, 
+                modules.name as module, 
+                users.name as responsible, 
+                machine_revisions.disabled')
+                ->join('machine_revisions', 'machine_revisions.id = machine_module_master.machine_rev')
+                ->join('machines', 'machines.id = machine_revisions.machine')
+                ->join('modules', 'modules.id = machine_module_master.module')
+                ->join('process', 'process.id = machines.process')
+                ->join('users', 'users.id = modules.responsible')
+                ->orderBy('machines.name', 'ASC')
+                ->get()
+                ->getResultArray();
+
+        $mappedMachines = array();
+        foreach ($machines as $machine) {
+            $machine['shifts'] = $this->machineShifts->select('shifts.number')
+            ->join('shifts', 'shifts.id = machine_shifts.shift')
+            ->where('machine_shifts.machine', $machine['machine_rev_id'])->findAll();
+            array_push($mappedMachines, $machine);
+        }
+
+        if ($mappedMachines) {
             return $this->respond([
                 'status'  => true,
                 'message' => 'Machines found',
-                'data'    => $machines
+                'data'    => $mappedMachines
             ], 200); // HTTP 200 OK
         } else {
             return $this->respond([

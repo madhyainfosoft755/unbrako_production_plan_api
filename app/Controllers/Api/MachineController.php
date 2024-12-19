@@ -7,17 +7,23 @@ use CodeIgniter\RESTful\ResourceController;
 
 use App\Models\MachineModel;
 use App\Models\ModulesModel;
+use App\Models\MachineRevisionModel;
+use App\Models\MachineShifts;
 
 class MachineController extends ResourceController
 {
     protected $machineModel;
     protected $modulesModel;
+    protected $machineRevisionModel;
+    protected $machineShifts;
 
     public function __construct()
     {
         // Load models in the constructor
         $this->machineModel = new MachineModel();
         $this->modulesModel = new ModulesModel();
+        $this->machineRevisionModel = new MachineRevisionModel();
+        $this->machineShifts = new MachineShifts();
     }
 
     public function addMachine(){
@@ -65,12 +71,28 @@ class MachineController extends ResourceController
     }
 
     public function getAllMachines(){
-        $machines = $this->machineModel->select('machines.id as id, no_of_mc, machines.name, speed, modules.name as module')
-            ->join('modules', 'modules.id = machines.module')
+        $machines = $this->machineRevisionModel->select('machine_revisions.id, 
+                                machine_revisions.name as machine_1, 
+                                machine_revisions.created_at, 
+                                machine_revisions.disabled, 
+                                machines.name as machine_name, 
+                                machines.speed as speed, 
+                                machines.no_of_mc as no_of_mc, 
+                                process.name as process')
+                                ->join('machines', 'machines.id = machine_revisions.machine')
+                                ->join('process', 'process.id = machines.process')
             ->orderBy('machines.name', 'ASC')->findAll();
 
+        $mappedMachines = array();
+        foreach ($machines as $machine) {
+            $machine['shifts'] = $this->machineShifts->select('shifts.number')
+            ->join('shifts', 'shifts.id = machine_shifts.shift')
+            ->where('machine_shifts.machine', $machine['id'])->findAll();
+            array_push($mappedMachines, $machine);
+        }
+
         return $this->respond([
-            'data' => $machines
+            'data' => $mappedMachines
         ], 200); // HTTP 200 OK
     }
 

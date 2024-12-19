@@ -15,7 +15,7 @@ class MachineModel extends Model
     protected $allowedFields    = [
         "name",
         "no_of_mc",
-        "module",
+        "process",
         "speed",
         "created_by",
         "updated_by"
@@ -38,14 +38,14 @@ class MachineModel extends Model
     protected $validationRules      = [
         "name"=> 'required|string|max_length[50]|is_unique[machines.name]',
         "no_of_mc"=> 'required',
-        "module"=> 'required'
+        "process"=> 'required'
     ];
     protected $validationMessages   = [
         'no_of_mc'      => [
             'required' => 'Count is required'
         ],
-        'module'      => [
-            'required' => 'Module is required'
+        'process'      => [
+            'required' => 'Process is required'
         ],
         'name'      => [
             'required' => 'Name is required', 

@@ -33,6 +33,8 @@ $routes->post("/api/login", [AuthController::class, "login"]);
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield_auth"], function($routes){
 
     $routes->get("profile", [AuthController::class, "profile"]);
+    $routes->get("users", [AuthController::class, "getAllUsers"]);
+    $routes->post("change-password", [AuthController::class, "changePassword"]);
     $routes->get("logout", [AuthController::class, "logout"]);
 
 });
@@ -103,6 +105,19 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('add-work-order-master', 'WorkOrderMasterController::addWorkOrderMaster');
     $routes->get('work-order-master', 'WorkOrderMasterController::getAllData');
     $routes->patch('work-order-master/(:num)', 'WorkOrderMasterController::updateWorkOrderMaster/$1');
+
+    // Product Master CRUD routes
+    $routes->post('product-master', 'ProductMasterController::addMachineMaster');
+    $routes->get('product-master', 'ProductMasterController::getAllProductMaster');
+    $routes->get('product-master/(:num)', 'ProductMasterController::getMachineMaster/$1');
+    $routes->put('product-master/(:num)', 'ProductMasterController::updateMachineMaster/$1');
+});
+
+// Open APIs
+$routes->group("masters", ["namespace" => "App\Controllers\Api"], function($routes){
+    $routes->get('part-number-info/(:any)', 'ProductMasterController::partNumberInfo/$1');
+    $routes->get('machines-info', 'MachineRevisionController::machinesInfo');
+
 });
 
 

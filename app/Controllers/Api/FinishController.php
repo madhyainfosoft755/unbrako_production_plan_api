@@ -48,7 +48,7 @@ class FinishController extends ResourceController
     }
 
     public function getAllFinish(){
-        $finish = $this->finishModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $finish = $this->finishModel->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $finish

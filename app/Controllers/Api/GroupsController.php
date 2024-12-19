@@ -47,7 +47,7 @@ class GroupsController extends ResourceController
     }
 
     public function getAllGroups(){
-        $groups = $this->groupsModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $groups = $this->groupsModel->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $groups

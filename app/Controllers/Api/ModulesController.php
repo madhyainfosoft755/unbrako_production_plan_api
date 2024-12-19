@@ -21,6 +21,7 @@ class ModulesController extends ResourceController
         // Get input data
         $data = [
             'name'           => $this->request->getVar('name'),
+            'responsible'           => $this->request->getVar('responsible'),
             'created_by'      => auth()->user()->id
         ];
 
@@ -48,7 +49,10 @@ class ModulesController extends ResourceController
     }
 
     public function getAllModules(){
-        $modules = $this->modulesModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $modules = $this->modulesModel->select('modules.id, modules.name, users.name as responsible, roles.role as role, modules.created_at')
+            ->join('users', 'users.id = modules.responsible')
+            ->join('roles', 'roles.id = users.role')
+            ->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $modules

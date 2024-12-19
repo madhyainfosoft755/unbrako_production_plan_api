@@ -47,7 +47,7 @@ class SegmentsController extends ResourceController
     }
 
     public function getAllSegments(){
-        $segments = $this->segmentsModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $segments = $this->segmentsModel->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $segments

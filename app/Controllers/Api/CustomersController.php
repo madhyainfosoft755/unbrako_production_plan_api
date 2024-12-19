@@ -48,7 +48,7 @@ class CustomersController extends ResourceController
     }
 
     public function getAllCustomers(){
-        $customers = $this->CustomersModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $customers = $this->CustomersModel->select('id, name, description, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $customers
