@@ -51,7 +51,10 @@ class RolesController extends ResourceController
     }
 
     public function getAllRoles(){
-        $roles = $this->rolesModel->select('id, role')->orderBy('role', 'ASC')->findAll();
+        $roles = $this->rolesModel->select('roles.role, roles.id, count(users.role) as employees')
+        ->join('users', 'users.role = roles.id', 'left')
+        ->groupBy('roles.id')
+        ->orderBy('roles.id', 'ASC')->findAll();
 
         return $this->respond([
             'data' => $roles

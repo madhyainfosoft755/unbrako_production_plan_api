@@ -16,6 +16,7 @@ class MachineController extends ResourceController
     protected $modulesModel;
     protected $machineRevisionModel;
     protected $machineShifts;
+    protected $format = 'json';
 
     public function __construct()
     {
@@ -27,47 +28,72 @@ class MachineController extends ResourceController
     }
 
     public function addMachine(){
-        $module = $this->request->getVar('module');
-        // Check if the machine exists in the 'machines' table
-        $moduleDetail = $this->modulesModel->find($module);
-        if (!$moduleDetail) {
-            return $this->respond([
-                'status' => false,
-                'message' => 'Module not found'
-            ], 404); // HTTP 404 Not Found
-        }
+        $db = db_connect();
+        $db->transBegin();
 
-        // Get input data
-        $speed = $this->request->getVar('speed');
-        $data = [
-            'name'           => $this->request->getVar('name'),
-            'no_of_mc'           => $this->request->getVar('no_of_mc'),
-            'module'           => $module,
-            'speed'   => (isset($speed) && $speed !== null) ? $speed : null,
-            'created_by'      => auth()->user()->id
-        ];
+        try {
+            // Get input data
+            // $input = $this->request->getJSON();
 
-        // Validate the input data
-        if (!$this->validate($this->machineModel->validationRules)) {
-            return $this->respond([
-                'status' => false,
-                'message' => 'Validation failed',
-                'errors' => $this->validator->getErrors()
-            ], 400); // HTTP 400 Bad Request
-        }
+            $machineModel = new MachineModel();
 
-        // Save the name
-        if ($this->machineModel->insert($data)) {
-            return $this->respond([
-                'status' => true,
-                'message' => 'Added successfully'
-            ], 201); // HTTP 201 Created
-        } else {
-            return $this->respond([
-                'status' => false,
-                'message' => 'Failed to add'
-            ], 500); // HTTP 500 Internal Server Error
+            // Validate input data
+            if (!$this->validate($this->machineModel->validationRules)) {
+                return $this->respond([
+                    'status'  => false,
+                    'message' => 'Validation failed',
+                    'errors'  => $this->validator->getErrors()
+                ], 400); // HTTP 400 Bad Request
+            }
+
+            // Insert machine
+            $machineData = [
+                "name"=>$this->request->getVar('name'),
+                "no_of_mc"=>$this->request->getVar('no_of_mc'),
+                "process"=>$this->request->getVar('process'),
+                "speed"=>$this->request->getVar('speed'),
+                "created_by"=> auth()->user()->id
+            ];
+            // $revisions = json_decode($this->request->getVar('machine_rev'), true);
+            $revisions = (array)$this->request->getVar('machine_rev');
+            if($this->request->getVar('no_of_mc') != count($revisions)){
+                return $this->respond([
+                    'status'  => false,
+                    'message'  => "Machine number not matched with sub machines number"
+                ], 400); // HTTP 400 Bad Request
+            }
+            
+            $machineId = $machineModel->insert($machineData);
+
+            if (!$machineId) {
+                throw new \RuntimeException('Failed to insert machine');
+            }
+
+            // Validate and insert machine revisions
+            $machineRevisionModel = new MachineRevisionModel();
+            // print_r($this->request->getVar('machine_rev'));die;
+            foreach ($revisions as $revision) {
+                $revicionArr = [];
+                $revicionArr['name']= $revision;
+                $revicionArr['machine'] = $machineId;
+                $revicionArr['created_by'] = auth()->user()->id;
+
+                if (!$machineRevisionModel->insert($revicionArr)) {
+                    throw new \RuntimeException('Failed to insert revision: ' . json_encode($revision));
+                }
+            }
+
+            // Commit transaction
+            $db->transCommit();
+
+            return $this->respondCreated(['message' => 'Machine and revisions created successfully']);
+        } catch (\Throwable $e) {
+            // Rollback transaction
+            $db->transRollback();
+
+            return $this->fail(['error' => $e->getMessage()], 500);
         }
+    
     }
 
     public function getAllMachines(){

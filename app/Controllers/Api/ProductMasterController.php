@@ -17,6 +17,7 @@ class ProductMasterController extends ResourceController
     protected $machineModel;
     protected $machineShifts;
     protected $productMasterModel;
+    protected $format    = 'json';
 
     public function __construct()
     {
@@ -64,7 +65,77 @@ class ProductMasterController extends ResourceController
      */
     public function create()
     {
-        //
+         // Retrieve data of Form-Data
+        // $data = $this->request->getPost();
+         // Retrieve JSON data
+        $data = $this->request->getJSON(true); // Convert JSON to associative array
+
+        // print_r($data); die;
+        $data['created_by'] = auth()->user()->id; // Use Shield login
+
+        if (!$this->validate($this->productMasterModel->getValidationRules())) {
+            return $this->failValidationErrors($this->validator->getErrors());
+        }
+
+        try{
+            if ($this->productMasterModel->insert($data)) {
+                return $this->respondCreated([
+                    'status'  => 'success',
+                    'message' => 'Product added successfully.',
+                    'data'    => $data,
+                ]);
+            }
+        }
+        catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            // Check if the error is due to foreign key constraint violation
+            if (strpos($e->getMessage(), 'foreign key constraint fails') !== false) {
+                if (strpos($e->getMessage(), 'machine-pm') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Machine does not exist'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                if (strpos($e->getMessage(), 'segment-pm') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Segment does not exist'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                if (strpos($e->getMessage(), 'finish-pm') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Finish does not exist'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                if (strpos($e->getMessage(), 'group-pm') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Group does not exist'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                if (strpos($e->getMessage(), 'seg2-pm') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Seg2 does not exist'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                if (strpos($e->getMessage(), 'seg3-pm') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Seg3 does not exist'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                return $this->respond([
+                    'status' => false,
+                    // 'message' => 'Foreign key constraint violation. Machine does not exist.'
+                    // 'message' => 'Machine does not exist.',
+                    // 'message' => 'Database error occurred: ' . $e->getMessage()
+                    'message' => 'Foreign key constraint violation'
+                ], 400); // HTTP 400 Bad Request
+            }
+        }
+
+        return $this->fail('Failed to create product.');
     }
 
     /**
@@ -88,7 +159,25 @@ class ProductMasterController extends ResourceController
      */
     public function update($id = null)
     {
-        //
+        if (!$id || !$this->model->find($id)) {
+            return $this->failNotFound('Product not found.');
+        }
+
+        $data = $this->request->getPost();
+
+        if (!$this->validate($this->model->getValidationRules())) {
+            return $this->failValidationErrors($this->validator->getErrors());
+        }
+
+        if ($this->model->update($id, $data)) {
+            return $this->respond([
+                'status'  => 'success',
+                'message' => 'Product updated successfully.',
+                'data'    => $data,
+            ]);
+        }
+
+        return $this->fail('Failed to update product.');
     }
 
     /**

@@ -29,12 +29,17 @@ $routes->get('/', 'Home::index');
 $routes->post("/api/register", [AuthController::class, "register"]);
 $routes->post("/api/login", [AuthController::class, "login"]);
 
+$routes->post("/api/user/forgot-password", [AuthController::class, "forgotPassword"]);
+$routes->post("/api/user/reset-password", [AuthController::class, "resetPassword"]);
+$routes->post("/api/user/check-reset-token", [AuthController::class, "checkResetPasswordToken"]);
+
 // Protected API Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield_auth"], function($routes){
 
     $routes->get("profile", [AuthController::class, "profile"]);
+    $routes->put('user/update', 'AuthController::updateUserDetails');
     $routes->get("users", [AuthController::class, "getAllUsers"]);
-    $routes->post("change-password", [AuthController::class, "changePassword"]);
+    $routes->post("change-password", [AuthController::class, "changePassword2"]);
     $routes->get("logout", [AuthController::class, "logout"]);
 
 });
@@ -80,8 +85,8 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->get('modules', 'ModulesController::getAllModules');
 
     // Customers
-    $routes->post('customers', 'CustomersController::addCustomer');
-    $routes->get('customers', 'CustomersController::getAllCustomers');
+    // $routes->post('customers', 'CustomersController::addCustomer');
+    // $routes->get('customers', 'CustomersController::getAllCustomers');
 
     // Machine Revisions
     $routes->post('machine-revisions/(:num)', 'MachineRevisionController::addMachineRevision/$1');
@@ -107,10 +112,13 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->patch('work-order-master/(:num)', 'WorkOrderMasterController::updateWorkOrderMaster/$1');
 
     // Product Master CRUD routes
-    $routes->post('product-master', 'ProductMasterController::addMachineMaster');
+    $routes->post('product-master', 'ProductMasterController::create');
     $routes->get('product-master', 'ProductMasterController::getAllProductMaster');
     $routes->get('product-master/(:num)', 'ProductMasterController::getMachineMaster/$1');
-    $routes->put('product-master/(:num)', 'ProductMasterController::updateMachineMaster/$1');
+    $routes->put('product-master/(:num)', 'ProductMasterController::update/$1');
+
+    $routes->get('shifts', 'ShiftController::getAllShift');
+
 });
 
 // Open APIs

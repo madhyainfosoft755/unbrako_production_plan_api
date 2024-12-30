@@ -27,16 +27,9 @@ class MachineMasterController extends ResourceController
     {
         // Get input data
         $data = [
-            'process'        => $this->request->getVar('process'),
-            'product'        => $this->request->getVar('product'),
-            'machine'        => $this->request->getVar('machine'),
-            'no_of_mc'       => $this->request->getVar('no_of_mc'),
-            'machine_1'      => $this->request->getVar('machine_1'),
-            'responsible'    => $this->request->getVar('responsible'),
+            'machine_rev'      => $this->request->getVar('machine_rev'),
             'module'         => $this->request->getVar('module'),
-            'speed'          => $this->request->getVar('speed'),
-            'no_of_shift'    => $this->request->getVar('no_of_shift'),
-            'created_by'     => auth()->user()->id,  // Assuming user authentication
+            'created_by' => auth()->user()->id
         ];
 
         // Validate input data
@@ -48,16 +41,40 @@ class MachineMasterController extends ResourceController
             ], 400); // HTTP 400 Bad Request
         }
 
-        // Save the data
-        if ($this->machineModel->insert($data)) {
+        try{
+            // Save the data
+            if ($this->machineModel->insert($data)) {
+                return $this->respond([
+                    'status'  => true,
+                    'message' => 'Machine added successfully'
+                ], 201); // HTTP 201 Created
+            } else {
+                return $this->respond([
+                    'status'  => false,
+                    'message' => 'Failed to add machine'
+                ], 500); // HTTP 500 Internal Server Error
+            }
+
+        } catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            // Check if the error is due to foreign key constraint violation
+            if (strpos($e->getMessage(), 'foreign key constraint fails') !== false) {
+                if (strpos($e->getMessage(), 'module') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Machine already mapped with this module.'
+                    ], 400); // HTTP 400 Bad Request
+                }
+                // Default error if no specific constraint is matched
+                return $this->respond([
+                    'status' => false,
+                    'message' => 'Foreign key constraint violation. Unable to add.'
+                ], 400); // HTTP 400 Bad Request
+            }
+            // Handle any other database-related errors
             return $this->respond([
-                'status'  => true,
-                'message' => 'Machine added successfully'
-            ], 201); // HTTP 201 Created
-        } else {
-            return $this->respond([
-                'status'  => false,
-                'message' => 'Failed to add machine'
+                'status' => false,
+                // 'message' => 'Database error occurred: ' . $e->getMessage()
+                'message' => $e->getMessage()
             ], 500); // HTTP 500 Internal Server Error
         }
     }

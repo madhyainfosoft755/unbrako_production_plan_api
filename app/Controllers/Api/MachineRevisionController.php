@@ -95,16 +95,32 @@ class MachineRevisionController extends ResourceController
         }
     }
 
-    public function getMachineRevisions($machine_id){
-        $machineRevisions = $this->MachineRevisionModel->select('machine_revisions.id as id, machines.name as machine, machine_revisions.name')
+    // public function getMachineRevisions($machine_id){
+    //     $machineRevisions = $this->MachineRevisionModel->select('machine_revisions.id as id, machines.name as machine, machine_revisions.name')
+    //         ->join('machines', 'machines.id = machine_revisions.machine')
+    //         ->where('machine_revisions.machine', $machine_id)
+    //         ->orderBy('machine_revisions.name', 'ASC')->findAll();
+
+    //     return $this->respond([
+    //         'data' => $machineRevisions
+    //     ], 200); // HTTP 200 OK
+    // }
+
+
+    public function getMachineRevisions($machine_rev_id){
+        $machineRevisions = $this->MachineRevisionModel->select('machine_revisions.id as rev_id, machine_revisions.name as machine_rev, machine_revisions.machine AS machine_id, machines.name as machine_name,machines.speed as speed, machines.no_of_mc as no_of_mc, process.name as process, machine_revisions.disabled as disabled')
             ->join('machines', 'machines.id = machine_revisions.machine')
-            ->where('machine_revisions.machine', $machine_id)
-            ->orderBy('machine_revisions.name', 'ASC')->findAll();
+            ->join('process', 'process.id = machines.process')
+            ->where('machine_revisions.id', $machine_rev_id)
+            // ->orderBy('machines.name', 'ASC')
+            // ->orderBy('machine_revisions.name', 'ASC')
+            ->findAll();
 
         return $this->respond([
             'data' => $machineRevisions
         ], 200); // HTTP 200 OK
     }
+
 
     public function machinesInfo(){
         $data = $this->MachineRevisionModel->select('
