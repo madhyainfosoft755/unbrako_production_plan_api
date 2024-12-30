@@ -12,6 +12,8 @@ $routes->get('/', 'Home::index');
 
 $routes->post("/api/register", [AuthController::class, "register"]);
 $routes->post("/api/login", [AuthController::class, "login"]);
+$routes->post('api/transfer_and_upload', 'Api\SapDataController::index');
+
 
 // Protected API Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield_auth"], function($routes){
@@ -22,5 +24,8 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
 });
 
 
+
+
 // Create JSON Doc
 $routes->get("swagger-json-doc", "DocController::convertAnnotationToJson");
+
