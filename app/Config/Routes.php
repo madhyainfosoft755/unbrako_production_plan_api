@@ -28,6 +28,8 @@ $routes->get('/', 'Home::index');
 
 $routes->post("/api/register", [AuthController::class, "register"]);
 $routes->post("/api/login", [AuthController::class, "login"]);
+$routes->post('api/transfer_and_upload', 'Api\SapDataController::index');
+
 
 $routes->post("/api/user/forgot-password", [AuthController::class, "forgotPassword"]);
 $routes->post("/api/user/reset-password", [AuthController::class, "resetPassword"]);
@@ -43,6 +45,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
     $routes->get("logout", [AuthController::class, "logout"]);
 
 });
+
 
 
 // Admin Routes
@@ -132,5 +135,7 @@ $routes->group("masters", ["namespace" => "App\Controllers\Api"], function($rout
 });
 
 
+
 // Create JSON Doc
 $routes->get("swagger-json-doc", "DocController::convertAnnotationToJson");
+
