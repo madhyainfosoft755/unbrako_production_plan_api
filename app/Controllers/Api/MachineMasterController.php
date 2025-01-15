@@ -203,6 +203,29 @@ class MachineMasterController extends ResourceController
         }
     }
 
+    public function getMachineModules($machine_rev_id){
+        // echo $machine_rev_id;
+        // $machine_rev = $this->machineModel->find($machine_rev_id);
+        // if ($machine_rev) {
+            $machine_rev_modules = $this->machineModel->select('machine_module_master.module as module_id, modules.name as module_name, users.name as responsible')
+            ->join('modules', 'modules.id = machine_module_master.module')
+            ->join('users', 'users.id = modules.responsible')
+            ->where('machine_module_master.machine_rev', $machine_rev_id)
+            ->orderBy('modules.name', 'ASC')
+            ->findAll();
+            return $this->respond([
+                'status'  => true,
+                'message' => 'Machine found',
+                'data'    => $machine_rev_modules
+            ], 200); // HTTP 200 OK
+        // } else {
+        //     return $this->respond([
+        //         'status'  => false,
+        //         'message' => 'Machine not found'
+        //     ], 404); // HTTP 404 Not Found
+        // }
+    }
+
     // Delete Machine [DELETE]
     // public function deleteMachineMaster($id)
     // {

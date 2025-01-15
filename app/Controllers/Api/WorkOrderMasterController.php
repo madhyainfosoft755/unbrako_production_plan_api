@@ -8,6 +8,7 @@ use CodeIgniter\RESTful\ResourceController;
 use App\Models\WorkOrderMasterModel;
 use App\Models\PlantModel;
 use App\Models\CustomersModel;
+use App\Models\SegmentsModel;
 
 class WorkOrderMasterController extends ResourceController
 {
@@ -15,6 +16,7 @@ class WorkOrderMasterController extends ResourceController
     protected $workOrderMasterModel;
     protected $plantModel;
     protected $customersModel;
+    protected $segmentsModel;
 
     public function __construct()
     {
@@ -22,13 +24,15 @@ class WorkOrderMasterController extends ResourceController
         $this->workOrderMasterModel = new WorkOrderMasterModel();
         $this->plantModel = new PlantModel();
         $this->customersModel = new CustomersModel();
+        $this->segmentsModel = new SegmentsModel();
     }
 
     public function getAllData(){
-        $data = $this->workOrderMasterModel->select('work_order_master.id, plant.name as plant, work_order_master.work_order_db, customers.name as customer, work_order_master.quality_inspection_required')
-            ->join('plant', 'plant.id = work_order_master.plant')
-            ->join('customers', 'customers.id = work_order_master.customer')
-            ->orderBy('work_order_master.customer', 'ASC')->findAll();
+        $data = $this->workOrderMasterModel->select('work_order_master.id, plant, work_order_db, customer, quality_inspection_required, responsible.name as responsible_person_name, responsible_person, marketing.name as marketing_person_name, marketing_person, segments.name as segment_name, segment, reciving_date, delivery_date, work_order_master.created_at')
+            ->join('segments', 'segments.id = work_order_master.segment')
+            ->join('users as responsible', 'responsible.id = work_order_master.responsible_person')
+            ->join('users as marketing', 'marketing.id = work_order_master.marketing_person')
+            ->orderBy('work_order_master.created_at', 'DESC')->findAll();
 
         return $this->respond([
             'data' => $data
@@ -40,29 +44,47 @@ class WorkOrderMasterController extends ResourceController
         $plant = $this->request->getVar('plant');
         $customer = $this->request->getVar('customer');
         $qir = $this->request->getVar('quality_inspection_required');
-        $plantDetails = $this->plantModel->find($plant);
+        $responsible_person = $this->request->getVar('responsible_person');
+        $marketing_person = $this->request->getVar('marketing_person');
+        $segment = $this->request->getVar('segment');
+        $reciving_date = $this->request->getVar('reciving_date');
+        $delivery_date = $this->request->getVar('delivery_date');
+        // $plantDetails = $this->plantModel->find($plant);
+        // // print_r(auth()->user()->role); die;
+        // if (!$plantDetails) {
+        //     return service('response')->setJSON([
+        //         'status' => false,
+        //         'message' => 'Plant not found'
+        //     ])->setStatusCode(404);
+        // }
+        $segmentDetails = $this->segmentsModel->find($segment);
         // print_r(auth()->user()->role); die;
-        if (!$plantDetails) {
+        if (!$segmentDetails) {
             return service('response')->setJSON([
                 'status' => false,
-                'message' => 'Plant not found'
+                'message' => 'Segment not found'
             ])->setStatusCode(404);
         }
 
-        $customerDetails = $this->customersModel->find($customer);
-        // print_r(auth()->user()->role); die;
-        if (!$customerDetails) {
-            return service('response')->setJSON([
-                'status' => false,
-                'message' => 'Customer not found'
-            ])->setStatusCode(404);
-        }
+        // $customerDetails = $this->customersModel->find($customer);
+        // // print_r(auth()->user()->role); die;
+        // if (!$customerDetails) {
+        //     return service('response')->setJSON([
+        //         'status' => false,
+        //         'message' => 'Customer not found'
+        //     ])->setStatusCode(404);
+        // }
         // Get input data
         $data = [
             'plant'           => $plant,
             'work_order_db'           => $this->request->getVar('work_order_db'),
             'quality_inspection_required'           => empty($qir)? 0: $qir,
             'customer'           => $customer,
+            'responsible_person'           => $responsible_person,
+            'marketing_person'           => $marketing_person,
+            'segment'           => $segment,
+            'reciving_date'           => $reciving_date,
+            'delivery_date'           => $delivery_date,
             'created_by'      => auth()->user()->id
         ];
 
@@ -154,6 +176,17 @@ class WorkOrderMasterController extends ResourceController
                 'message' => 'Failed to update Work Order'
             ], 500); // HTTP 500 Internal Server Error
         }
+    }
+
+
+    public function getCustomerNames($name_contains){
+        $data = $this->workOrderMasterModel->select('customer')
+            ->like('customer', $name_contains)
+            ->orderBy('customer', 'ASC')->findAll();
+
+        return $this->respond([
+            'data' => $data
+        ], 200); // HTTP 200 OK
     }
 
     

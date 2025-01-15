@@ -16,7 +16,8 @@ class ProductMasterModel extends Model
         'order_number', 'material_number', 'material_description', 'unit_of_measure',
         'machine', 'seg2', 'seg3', 'segment', 'finish', 'prod_group',
         'cheese_wt', 'finish_wt', 'size', 'length', 'spec',
-        'rod_dia1', 'drawn_dia1', 'condition_of_rm', 'created_by', 'updated_by'
+        'rod_dia1', 'drawn_dia1', 'condition_of_rm', 'created_by', 'updated_by', 'rm_component', 'special_remarks', 'bom',
+        'material_number_for_process', 'machine_module', 'machine_module_master_id'
     ];
 
     protected bool $allowEmptyInserts = false;

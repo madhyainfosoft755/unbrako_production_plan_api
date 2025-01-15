@@ -97,18 +97,20 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('machines', 'MachineController::addMachine');
     $routes->get('machines', 'MachineController::getAllMachines');
     $routes->get('machines/(:num)', 'MachineController::getMachine/$1');
-    $routes->patch('machines/(:num)', 'MachineController::updateMachine/$1');
+    $routes->put('machines/(:num)', 'MachineController::updateMachine/$1');
 
     // Machine Master CRUD routes
     $routes->post('machine-master', 'MachineMasterController::addMachineMaster');
     $routes->get('machine-master', 'MachineMasterController::getAllMachineMaster');
     $routes->get('machine-master/(:num)', 'MachineMasterController::getMachineMaster/$1');
     $routes->put('machine-master/(:num)', 'MachineMasterController::updateMachineMaster/$1');
+    $routes->get('get-machine-modules/(:num)', 'MachineMasterController::getMachineModules/$1');
     //  $routes->delete('machine-master/(:num)', 'MachineMasterController::deleteMachineMaster/$1');
 
     // Work Order Master
     $routes->post('add-work-order-master', 'WorkOrderMasterController::addWorkOrderMaster');
     $routes->get('work-order-master', 'WorkOrderMasterController::getAllData');
+    $routes->get('customer-names/(:any)', 'WorkOrderMasterController::getCustomerNames/$1');
     $routes->patch('work-order-master/(:num)', 'WorkOrderMasterController::updateWorkOrderMaster/$1');
 
     // Product Master CRUD routes
@@ -123,7 +125,8 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
 
 // Open APIs
 $routes->group("masters", ["namespace" => "App\Controllers\Api"], function($routes){
-    $routes->get('part-number-info/(:any)', 'ProductMasterController::partNumberInfo/$1');
+    $routes->get('part-number-info/(:any)', 'ProductMasterController::partNumberInfo/$1'); //material_no_info for machine name
+    $routes->get('material-number-info/(:any)', 'ProductMasterController::material_no_info/$1'); //material_no_info
     $routes->get('machines-info', 'MachineRevisionController::machinesInfo');
 
 });

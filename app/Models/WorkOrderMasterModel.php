@@ -18,7 +18,12 @@ class WorkOrderMasterModel extends Model
         "customer",
         "created_by",
         "updated_by",
-        "quality_inspection_required"
+        "quality_inspection_required",
+        "responsible_person",
+        "marketing_person",
+        "segment",
+        "reciving_date",
+        "delivery_date"
     ];
 
     protected bool $allowEmptyInserts = false;
