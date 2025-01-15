@@ -57,7 +57,12 @@ class Cors extends BaseConfig
          *
          * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials
          */
-        'supportsCredentials' => false,
+        'supportsCredentials' => true,
+
+        /**
+         * Allow credentials (cookies, authorization headers, etc.)
+         */
+        'allowCredentials' => true,
 
         /**
          * Set headers to allow.
@@ -68,7 +73,7 @@ class Cors extends BaseConfig
          *
          * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers
          */
-        'allowedHeaders' => ["Authorization", "Content-Type"],
+        'allowedHeaders' => ['Content-Type', 'Authorization', 'X-Requested-With'],
 
         /**
          * Set headers to expose.
@@ -79,7 +84,7 @@ class Cors extends BaseConfig
          *
          * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers
          */
-        'exposedHeaders' => [],
+        'exposedHeaders' => ['Authorization'],
 
         /**
          * Set methods to allow.
@@ -93,7 +98,7 @@ class Cors extends BaseConfig
          *
          * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods
          */
-        'allowedMethods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+        'allowedMethods' => ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
 
         /**
          * Set how many seconds the results of a preflight request can be cached.

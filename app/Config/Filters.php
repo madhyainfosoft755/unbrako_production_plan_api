@@ -14,6 +14,11 @@ use CodeIgniter\Filters\PerformanceMetrics;
 use CodeIgniter\Filters\SecureHeaders;
 use App\Filters\ShieldAuthFilter;
 
+use App\Filters\AdminAccessFilter;
+use App\Filters\FinishAccessFilter;
+use App\Filters\ForgingAccessFilter;
+use App\Filters\HeatingAccessFilter;
+
 class Filters extends BaseFilters
 {
     /**
@@ -36,6 +41,11 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'shield_auth' => ShieldAuthFilter::class,
+
+        'admin_access' => AdminAccessFilter::class,
+        'finish_access' => FinishAccessFilter::class,
+        'forging_access' => ForgingAccessFilter::class,
+        'heating_access' => HeatingAccessFilter::class,
     ];
 
     /**

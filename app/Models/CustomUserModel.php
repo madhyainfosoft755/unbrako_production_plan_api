@@ -22,7 +22,9 @@ class CustomUserModel extends ShieldUserModel
         'last_active',
         'name',
         'role',
-        'emp_id'
+        'emp_id',
+        'salutation',
+        'email_add'
     ];
 
     // protected bool $allowEmptyInserts = false;

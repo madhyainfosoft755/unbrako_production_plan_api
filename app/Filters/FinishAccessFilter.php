@@ -5,9 +5,8 @@ namespace App\Filters;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
-use Config\Services;
 
-class ShieldAuthFilter implements FilterInterface
+class FinishAccessFilter implements FilterInterface
 {
     /**
      * Do whatever processing this filter needs to do.
@@ -26,12 +25,23 @@ class ShieldAuthFilter implements FilterInterface
      */
     public function before(RequestInterface $request, $arguments = null)
     {
-        if(!auth("tokens")->loggedIn()){
+        $userId = auth()->user()->id; // Get authenticated user ID
+        
+        // Check if project exists
+        $customUserModel = new \App\Models\CustomUserModel();
+        $userDetails = $customUserModel->find($userId);
+        if (!$userDetails) {
+            return service('response')->setJSON([
+                'status' => false,
+                'message' => 'User not found'
+            ])->setStatusCode(404);
+        }
 
-            return Services::response()->setStatusCode(401)->setJSON([
-                "status" => false,
-                "message" => "Unauthorized Access"
-            ]);
+        if ($userDetails['role'] != 1 || $userDetails['role'] != 4) {
+            return service('response')->setJSON([
+                'status' => false,
+                'message' => 'Unauthorized Access!',
+            ])->setStatusCode(401);
         }
     }
 
