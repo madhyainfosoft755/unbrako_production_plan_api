@@ -206,6 +206,18 @@ class ProductMasterController extends ResourceController
     public function getAllProductMaster()
     {
 
+        $cacheKey = 'get_product_master_data'; // Unique cache key
+
+        // Attempt to get the data from cache
+        $cache = \Config\Services::cache();
+
+        // Check if data is available in cache
+        if ($data = $cache->get($cacheKey)) {
+            // $cache->delete($cacheKey);
+            // return $this->respond(['status' => 'success', 'message' => 'Cache cleared successfully.']);
+            return $this->respond($data);  // Return cached data
+        }
+
         $productMaster = $this->productMasterModel->select('product_master.*, 
                     machines.name as machine_name, 
                     responsible.name as responsible_name, 
@@ -232,6 +244,11 @@ class ProductMasterController extends ResourceController
 
 
         if ($productMaster) {
+            // Cache the data for 60 minutes
+            $cache->save($cacheKey, [
+                'data' => $productMaster
+            ], 3600);  // Save in cache for 1 hour
+
             return $this->respond([
                 'status'  => true,
                 'message' => 'Products found',

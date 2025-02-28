@@ -28,15 +28,50 @@ class WorkOrderMasterController extends ResourceController
     }
 
     public function getAllData(){
-        $data = $this->workOrderMasterModel->select('work_order_master.id, plant, work_order_db, customer, quality_inspection_required, responsible.name as responsible_person_name, responsible_person, marketing.name as marketing_person_name, marketing_person, segments.name as segment_name, segment, reciving_date, delivery_date, work_order_master.created_at')
-            ->join('segments', 'segments.id = work_order_master.segment')
-            ->join('users as responsible', 'responsible.id = work_order_master.responsible_person')
-            ->join('users as marketing', 'marketing.id = work_order_master.marketing_person')
+
+        $cacheKey = 'get_wo_master_data'; // Unique cache key
+
+        // Attempt to get the data from cache
+        $cache = \Config\Services::cache();
+
+        // Check if data is available in cache
+        if ($data = $cache->get($cacheKey)) {
+            // $cache->delete($cacheKey);
+            // return $this->respond(['status' => 'success', 'message' => 'Cache cleared successfully.']);
+            return $this->respond($data);  // Return cached data
+        }
+
+        $data = $this->workOrderMasterModel->select('work_order_master.id, plant, work_order_master.responsible_person_name as responsible_person_name1 , work_order_master.marketing_person_name as marketing_person_name1, work_order_db, customer, quality_inspection_required, responsible.name as responsible_person_name, responsible_person, marketing.name as marketing_person_name, marketing_person, segments.name as segment_name, segment, reciving_date, delivery_date, work_order_master.created_at')
+            ->join('segments', 'segments.id = work_order_master.segment', 'left')
+            ->join('users as responsible', 'responsible.id = work_order_master.responsible_person', 'left')
+            ->join('users as marketing', 'marketing.id = work_order_master.marketing_person', 'left')
             ->orderBy('work_order_master.created_at', 'DESC')->findAll();
+
+        // Cache the data for 60 minutes
+        $cache->save($cacheKey, [
+            'data' => $data
+        ], 3600);  // Save in cache for 1 hour
 
         return $this->respond([
             'data' => $data
         ], 200); // HTTP 200 OK
+    }
+
+    // Method to clear cache manually
+    public function clearCache()
+    {
+        $cacheKey = 'api_data';  // The cache key you want to clear
+
+        // Get the cache service
+        $cache = \Config\Services::cache();
+
+        // Check if cache exists and then delete it
+        if ($cache->get($cacheKey)) {
+            $cache->delete($cacheKey);  // Delete the cached data
+            return $this->respond(['status' => 'success', 'message' => 'Cache cleared successfully.']);
+        }
+
+        return $this->respond(['status' => 'error', 'message' => 'Cache not found.']);
     }
 
 

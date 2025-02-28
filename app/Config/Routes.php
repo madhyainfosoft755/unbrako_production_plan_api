@@ -18,6 +18,7 @@ use App\Controllers\Api\WorkOrderMasterController;
 use App\Controllers\Api\MachineRevisionController;
 use App\Controllers\Api\MachineController;
 use App\Controllers\Api\MachineMasterController;
+use App\Controllers\Api\SapDataController;
 
 /**
  * @var RouteCollection $routes
@@ -28,8 +29,7 @@ $routes->get('/', 'Home::index');
 
 $routes->post("/api/register", [AuthController::class, "register"]);
 $routes->post("/api/login", [AuthController::class, "login"]);
-$routes->post('api/transfer_and_upload', 'Api\SapDataController::index');
-
+// $routes->get('clear-cache', 'ApiController::clearCache'); // Clear cache
 
 $routes->post("/api/user/forgot-password", [AuthController::class, "forgotPassword"]);
 $routes->post("/api/user/reset-password", [AuthController::class, "resetPassword"]);
@@ -44,13 +44,22 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
     $routes->post("change-password", [AuthController::class, "changePassword2"]);
     $routes->get("logout", [AuthController::class, "logout"]);
 
+    $routes->get('get-sap-data', 'SapDataController::get_sap_data');
+    $routes->post('m-w-m-w-m-report', 'SapDataController::get_sap_data2'); // module wise - machine wise - monthly report
+    $routes->post('m-w-m-w-m-report2', 'SapDataController::get_sap_data3'); // module wise - machine wise - monthly report2
+    $routes->post('sap-data/update/(:num)', 'SapDataController::updateRow/$1');
+    $routes->post('update-to-forge/(:num)', 'SapDataController::updateToForge/$1');
+    $routes->post('update-weekly-forge/(:num)', 'SapDataController::updateWeeklyForge/$1');
+    $routes->post('update-forged-so-far/(:num)', 'SapDataController::updateForgedSoFar/$1');
+
+
 });
 
 
 
 // Admin Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth", "admin_access"]], function($routes) {
-
+    $routes->post('transfer-and-upload', 'SapDataController::index');
     // roles
     $routes->post('roles', 'RolesController::addRole');
     $routes->get('roles', 'RolesController::getAllRoles');
@@ -90,10 +99,11 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     // Customers
     // $routes->post('customers', 'CustomersController::addCustomer');
     // $routes->get('customers', 'CustomersController::getAllCustomers');
-
+    
     // Machine Revisions
     $routes->post('machine-revisions/(:num)', 'MachineRevisionController::addMachineRevision/$1');
     $routes->get('machine-revisions/(:num)', 'MachineRevisionController::getMachineRevisions/$1');
+    $routes->post('get-machine-for-modules', 'MachineRevisionController::getMachineForModules'); 
 
 
     // Machine
@@ -107,9 +117,9 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->get('machine-master', 'MachineMasterController::getAllMachineMaster');
     $routes->get('machine-master/(:num)', 'MachineMasterController::getMachineMaster/$1');
     $routes->put('machine-master/(:num)', 'MachineMasterController::updateMachineMaster/$1');
-    $routes->get('get-machine-modules/(:num)', 'MachineMasterController::getMachineModules/$1');
+    $routes->get('get-machine-modules/(:num)', 'MachineMasterController::getMachineModules/$1'); 
     //  $routes->delete('machine-master/(:num)', 'MachineMasterController::deleteMachineMaster/$1');
-
+    
     // Work Order Master
     $routes->post('add-work-order-master', 'WorkOrderMasterController::addWorkOrderMaster');
     $routes->get('work-order-master', 'WorkOrderMasterController::getAllData');
@@ -124,6 +134,10 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
 
     $routes->get('shifts', 'ShiftController::getAllShift');
 
+});
+
+// Forging Routes
+$routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth", "forging_access"]], function($routes) {
 });
 
 // Open APIs

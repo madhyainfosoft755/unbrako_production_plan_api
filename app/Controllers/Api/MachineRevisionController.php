@@ -141,5 +141,28 @@ class MachineRevisionController extends ResourceController
             'data'    => $data
         ], 200);
     }
+
+    public function getMachineForModules(){
+        $moduleIds = $this->request->getVar('moduleIds');
+        $data = $this->MachineRevisionModel->select('
+                machine_revisions.machine AS machine_id, 
+                machines.name AS machine_name, 
+                machine_revisions.id AS rev_id, 
+                machine_revisions.name AS machine_rev, 
+                machine_revisions.disabled AS disabled
+            ')
+            ->join('machines', 'machines.id = machine_revisions.machine')
+            ->join('machine_module_master', 'machine_module_master.machine_rev = machine_revisions.id')
+            ->whereIn('machine_module_master.module', $moduleIds)
+            ->orderBy('machines.name', 'ASC')
+            ->orderBy('machine_revisions.name', 'ASC')
+            ->findAll();
+
+        return $this->respond([
+            'status'  => true,
+            'message' => 'Data Found',
+            'data'    => $data
+        ], 200);
+    }
     
 }
