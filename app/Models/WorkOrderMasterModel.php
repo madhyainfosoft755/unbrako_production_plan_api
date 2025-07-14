@@ -21,9 +21,14 @@ class WorkOrderMasterModel extends Model
         "quality_inspection_required",
         "responsible_person",
         "marketing_person",
+        "responsible_person_name",
+        "marketing_person_name",
         "segment",
         "reciving_date",
-        "delivery_date"
+        "delivery_date",
+        "wo_add_date",
+        "no_of_items",
+        "weight"
     ];
 
     protected bool $allowEmptyInserts = false;

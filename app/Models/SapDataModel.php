@@ -55,8 +55,8 @@ class SapDataModel extends Model
     protected $table = 'sap_data';
     protected $primaryKey = 'id';
   
-    protected $allowedFields = ['orderNumber', 'plant', 'materialNumber', 'materialDescription', 'orderQuantity_GMEIN', 'deliveredQuantity_GMEIN', 'confirmedQuantity_GMEIN', 'unitOfMeasure_GMEIN', 'to_forge', 'forged_so_far', 'batch', 'sequenceNumber', 'createdOn', 'orderType', 'systemStatus', 'enteredBy', 'postingDate', 'statusProfile', 'insertedTimestamp', 'insertedBy',
-    'forge_commite_week', 'this_month_forge_qty', 'plan_no_of_mc', 'special_remarks', 'rm_delivery_date', 'advance_final_rm_wt', 'rm_allocation_priority', 'rm_allocation_priority',  'updated_at', 'week1', 'week2', 'week3', 'week4'   ];  // Define the allowed fields
+    protected $allowedFields = ['orderNumber', 'plant', 'materialNumber', 'materialDescription', 'orderQuantity_GMEIN', 'deliveredQuantity_GMEIN', 'confirmedQuantity_GMEIN', 'unitOfMeasure_GMEIN', 'to_forge_qty', 'to_forge_limit_inc', 'forged_so_far', 'batch', 'startDate', 'salesOrder', 'systemStatus', 'scheduledFinishDate', 'insertedTimestamp', 'insertedBy',
+    'forge_commite_week', 'this_month_forge_qty', 'special_remarks', 'is_rm_ready', 'rm_delivery_date', 'monthly_plan', 'monthly_fix_plan', 'rm_allocation_priority', 'rm_correction', 'plan_allocation', 'updated_at', 'updated_by'   ];  // Define the allowed fields
 
     public function getSapData($filters = [], $orderBy = [], $limit = null, $offset = null)
     {
@@ -97,7 +97,7 @@ class SapDataModel extends Model
                     seg2.name as seg2_name,
                     seg3.name as seg3_name,
                     groups.name as prod_group_name',)
-            ->join('work_order_master wom', 'wom.work_order_db = derived.sequenceNumber', 'left')
+            ->join('work_order_master wom', 'wom.work_order_db = derived.work_order', 'left')
             ->join('product_master pm', 'pm.material_number_for_process = derived.materialNumber', 'left')
             ->join('machine_revisions mr', 'mr.id = pm.machine', 'left')
             ->join('machines mc', 'mc.id = mr.machine', 'left')

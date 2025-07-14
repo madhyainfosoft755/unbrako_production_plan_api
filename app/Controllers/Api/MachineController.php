@@ -9,13 +9,19 @@ use App\Models\MachineModel;
 use App\Models\ModulesModel;
 use App\Models\MachineRevisionModel;
 use App\Models\MachineShifts;
+use App\Models\SapDataModel;
+use App\Models\DailyModuleShiftOutputModel;
+use App\Models\DailyModuleShiftQtyUpdateModel;
 
 class MachineController extends ResourceController
 {
     protected $machineModel;
     protected $modulesModel;
     protected $machineRevisionModel;
+    protected $sapDataModel;
     protected $machineShifts;
+    protected $daily_module_shift_output_model;
+    protected $daily_module_shift_qty_update_model;
     protected $format = 'json';
 
     public function __construct()
@@ -25,6 +31,9 @@ class MachineController extends ResourceController
         $this->modulesModel = new ModulesModel();
         $this->machineRevisionModel = new MachineRevisionModel();
         $this->machineShifts = new MachineShifts();
+        $this->sapDataModel = new SapDataModel();
+        $this->daily_module_shift_output_model = new DailyModuleShiftOutputModel();
+        $this->daily_module_shift_qty_update_model = new DailyModuleShiftQtyUpdateModel();
     }
 
     public function addMachine(){
@@ -146,6 +155,14 @@ class MachineController extends ResourceController
         ], 200); // HTTP 200 OK
     }
 
+    public function allMachines(){
+        $machines = $this->machineModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+
+        return $this->respond([
+            'data' => $machines
+        ], 200); // HTTP 200 OK
+    }
+
     public function getMachine($machine_id){
         $machines = $this->machineModel->select('machines.id as id, no_of_mc, machines.name, machines.process as process_id, speed, process.name as process')
             ->join('process', 'process.id = machines.process')
@@ -177,6 +194,60 @@ class MachineController extends ResourceController
                 'message' => 'Machine not found'
             ], 404); // HTTP 404 Not Found
         }
+    }
+
+    public function GetAllMachinesWithPartNumbers(){
+        $request = $this->request;
+        $postData = $request->getJSON(true); // Get POST data as array
+
+        $module_id = isset($postData['module_id']) ? trim($postData['module_id']) : '';
+
+        // query = SELECT sap_data.*, pm.material_description, pm.machine, pm.machine_module FROM `sap_data` LEFT JOIN product_master pm ON pm.material_number_for_process = sap_data.materialNumber LEFT JOIN machine_revisions mr ON mr.id = pm.machine LEFT JOIN modules m ON m.id = pm.machine_module ORDER BY mr.name, sap_data.materialNumber;
+        $builder = $this->sapDataModel
+            ->select(
+                'sap_data.*, 
+                pm.material_description, 
+                pm.machine as machine_id, 
+                pm.machine_module,
+                mr.name as machine_name,
+                m.id as module_id,'
+            )
+            ->join('product_master pm', 'pm.material_number_for_process = sap_data.materialNumber', 'left')
+            ->join('machine_revisions mr', 'mr.id = pm.machine', 'left')
+            ->join('modules m',          'm.id  = pm.machine_module', 'left')
+
+            // ->join('daily_module_shift_qty_update dmsq', 'dmsq.sap_id = sap_data.id', 'left')
+            // ->join('daily_module_shift_output dmso',          'dmso.id  = dmsq.module_shift_id', 'left')
+            // ->where('dmso.is_permanent','0')
+            ->where('sap_data.to_forge_qty > sap_data.forged_so_far ')
+            
+            ->orderBy('mr.name')                 // ORDER BY mr.name,
+            ->orderBy('sap_data.materialNumber'); //          sap_data.materialNumber
+            // ->findAll();
+
+        if (!empty($module_id)) {
+            $builder->where('m.id', $module_id);
+        }
+        $data = $builder->findAll();
+
+        // iterate every data object and add kv for production_qty
+        foreach ($data as &$item) {
+            $item['production_qty'] = 0; // Initialize production_qty to 0
+            // Get the production quantity for this materialNumber
+            $qtyUpdate = $this->daily_module_shift_qty_update_model
+                ->select('SUM(production_qty) as total_qty')
+                ->join('daily_module_shift_output dmso', 'dmso.id = daily_module_shift_qty_update.module_shift_id', 'left')
+                ->where('sap_id', $item['id'])
+                ->where('dmso.is_permanent', '0')
+                ->first();
+            if ($qtyUpdate && isset($qtyUpdate['total_qty'])) {
+                $item['production_qty'] = (int)$qtyUpdate['total_qty'];
+            }
+        }
+
+        return $this->respond([
+            'data' => $data
+        ], 200); // HTTP 200 OK
     }
 
     // public function updateMachine($machine_id){

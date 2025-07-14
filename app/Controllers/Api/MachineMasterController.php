@@ -92,7 +92,16 @@ class MachineMasterController extends ResourceController
         //     ->get()
         //     ->getResultArray();
 
-        $machines = $this->machineModel->select('machine_module_master.id, 
+        $request = $this->request;
+        $postData = $request->getJSON(true); // Get POST data as array
+
+        // Get page from query param (e.g., ?page=2), default to 1
+        $page = (int) $this->request->getGet('page');
+        $page = max($page, 1); // Ensure at least 1
+        $perPage = 50;
+        $offset = ($page - 1) * $perPage;
+
+        $builder = $this->machineModel->select('machine_module_master.id, 
                 machines.name as machine_name, 
                 machine_revisions.name as machine_1, 
                 machine_revisions.id as machine_rev_id, 
@@ -107,32 +116,52 @@ class MachineMasterController extends ResourceController
                 ->join('modules', 'modules.id = machine_module_master.module')
                 ->join('process', 'process.id = machines.process')
                 ->join('users', 'users.id = modules.responsible')
-                ->orderBy('machines.name', 'ASC')
-                ->get()
-                ->getResultArray();
+                ->orderBy('machines.name', 'ASC');
+                // ->get()
+                // ->getResultArray();
+
+        $machines = isset($postData['machines']) ? trim($postData['machines']) : '';
+        // $machine_1 = isset($postData['machine_1']) ? trim($postData['machine_1']) : '';
+        $modules = isset($postData['modules']) ? trim($postData['modules']) : '';
+
+        if (!empty($machines)) {
+            $builder->like('machines.id', $machines);
+        }
+
+        // if (!empty($machine_1)) {
+        //     $builder->like('machine_revisions.id', $machine_1);
+        // }
+
+        if (!empty($modules)) {
+            $builder->where('modules.id', $modules);
+        }
+
+        $countBuilder = clone $builder;
+        $total = $countBuilder->countAllResults(false);
+
+        $data = $builder->findAll($perPage, $offset);
 
         $mappedMachines = array();
-        foreach ($machines as $machine) {
+        foreach ($data as $machine) {
             $machine['shifts'] = $this->machineShifts->select('shifts.number')
             ->join('shifts', 'shifts.id = machine_shifts.shift')
             ->where('machine_shifts.machine', $machine['machine_rev_id'])->findAll();
             array_push($mappedMachines, $machine);
         }
 
-        if ($mappedMachines) {
-            return $this->respond([
-                'status'  => true,
-                'message' => 'Machines found',
-                'data'    => $mappedMachines
-            ], 200); // HTTP 200 OK
-        } else {
-            return $this->respond([
-                'status'  => false,
-                'message' => 'No machines found'
-            ], 404); // HTTP 404 Not Found
-        }
+        return $this->respond([
+            'status'  => true,
+            'message' => 'Machines found',
+            'data'    => $mappedMachines,
+            'filterData' => $postData,
+            'pagination' => [
+                'current_page' => $page,
+                'per_page'     => $perPage,
+                'total'        => $total,
+                'last_page'    => ceil($total / $perPage)
+            ]
+        ], 200);
     }
-
     // Get Machine by ID [GET]
     public function getMachineMaster($id)
     {

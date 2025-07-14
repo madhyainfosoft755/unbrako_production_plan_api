@@ -12,7 +12,18 @@ use App\Models\CustomUserModel;
 use App\Models\WeeklyPeriodsModel;
 use CodeIgniter\Controller\AuthController;
 use CodeIgniter\Files\File;
+use Config\Database;
 use Exception;
+use DateTime;
+use App\Models\SAPFileImportLogModel;
+use App\Models\SapTempImportDataModel;
+use App\Models\SapCalculatedSummaryModel;
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
+use PhpOffice\PhpSpreadsheet\Style\Protection;
 
 
 class SapDataController extends ResourceController
@@ -35,47 +46,122 @@ class SapDataController extends ResourceController
 public function index()
 {
     $excelUploadFile = $this->request->getFile("upload_excel");
-    $uploadExcelURL = "";
+    if (!$excelUploadFile->isValid()) {
+        return $this->failValidationErrors($excelUploadFile->getErrorString());
+    }
 
+    $uploadExcelURL = "";
     if ($excelUploadFile && $excelUploadFile->isValid()) {
+        // 1. Persist file
         $newExcelUploadName = $excelUploadFile->getRandomName();
-        $excelUploadFile->move(FCPATH . "uploads", $newExcelUploadName);
-        $uploadExcelURL = FCPATH . "uploads/" . $newExcelUploadName;
+        $path = WRITEPATH . 'uploads/';
+        $excelUploadFile->move(WRITEPATH . "uploads", $newExcelUploadName);
+        // $excelUploadFile->move(FCPATH . "uploads", $newExcelUploadName);
+        // $uploadExcelURL = FCPATH . "uploads/" . $newExcelUploadName;
+        $uploadExcelURL = WRITEPATH . "uploads/" . $newExcelUploadName;
+
+        // 2. Add log row
+        $logModel  = new SAPFileImportLogModel();
+        $fileId = $logModel->insert([
+            'original_name' => $excelUploadFile->getClientName(),
+            'stored_name'   => $newExcelUploadName,
+            'uploaded_by'   => user_id() ?? null, // if you use auth
+            'status'        => 'pending',
+            'created_at'    => date('Y-m-d H:i:s'),
+        ], true);
+        $this->clearSapData(); 
+        $this->dumpToTemp($path . $newExcelUploadName, $fileId);
+
+         // 4. Trigger CLI job asynchronously (Linux)
+        // exec("php " . ROOTPATH . "spark validate:sapfiledata {$fileId} > /dev/null 2>&1 &");
+
+        return $this->respondCreated(['fileId' => $fileId, 'message' => 'File queued for validation']);
     } else {
         return $this->fail("Failed to upload the file.", 400);
     }
 
-    try {
-        // Load the uploaded Excel file
-          $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($uploadExcelURL);
-          $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
+    // try {
+    //     // Load the uploaded Excel file
+    //       $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($uploadExcelURL);
+    //       $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
 
-        // // Remove the header row
-         unset($sheetData[1]);
+    //     // // Remove the header row
+    //      unset($sheetData[1]);
 
-        // Prepare data for insertion
-        $insertData = $this->prepareInsertData($sheetData);
-        // print_r($insertData); die;
-        // Perform database operations
-        $db = \Config\Database::connect();
-        // $db->transStart();
+    //     // Prepare data for insertion
+    //     $insertData = $this->prepareInsertData($sheetData);
+    //     // print_r($insertData); die;
+    //     // Perform database operations
+    //     $db = \Config\Database::connect();
+    //     // $db->transStart();
 
-        $this->transferSapData(); // Transfer data to history
-         $this->clearSapData();    // Clear sap_data table
-        $this->insertSapData($insertData); // Insert new data into sap_data
+    //     $this->transferSapData(); // Transfer data to history
+    //      $this->clearSapData();    // Clear sap_data table
+    //     $this->insertSapData($insertData); // Insert new data into sap_data
 
-        // $db->transComplete();
+    //     // $db->transComplete();
 
-        return $this->respond([
-            "status" => true,
-            "message" => "Data processed and added successfully."
-        ], 201);
-    } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
-        return $this->fail("Error processing the Excel file: " . $e->getMessage(), 500);
-    } catch (\Exception $e) {
-        return $this->fail("An error occurred: " . $e->getMessage(), 500);
+    //     return $this->respond([
+    //         "status" => true,
+    //         "message" => "Data processed and added successfully.",
+    //         "data" => $insertData
+    //     ], 201);
+    // } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
+    //     return $this->fail("Error processing the Excel file: " . $e->getMessage(), 500);
+    // } catch (\Exception $e) {
+    //     return $this->fail("An error occurred: " . $e->getMessage(), 500);
+    // }
+}
+
+
+protected function dumpToTemp(string $filepath, int $fileId): void
+{
+    helper('date_excel');
+    $sheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filepath)->getActiveSheet();
+    $spreadsheet = IOFactory::load($filepath);
+    $sheet = $spreadsheet->getActiveSheet();
+    $rows = [];
+
+    foreach ($sheet->toArray(null, true, true, false) as $idx => $r) {
+        if ($idx === 0) continue;
+        if (empty(array_filter($r))) continue;
+
+        $r = array_pad($r, 13, '');
+
+        [$order, $mat, $desc, $plant, $oqty, $dqty, $cqty, $uom, $batch, $status, $startDate, $finishDate, $salesOrder] = $r;
+        // $orderQuantity     = is_numeric($oqty) ? (int)$oqty : 0;
+        // $confirmedQuantity = is_numeric($cqty) ? (int)$cqty : 0;
+        $rows[] = [
+            'file_id'               => $fileId,
+            'row_index'             => $idx + 1,
+            'order_number'          => trim($order),
+            'material'              => trim($mat),
+            'material_description'  => trim($desc),
+            'plant'                 => trim($plant),
+            'order_quantity'        => $oqty ? (int)str_replace(',', '', $oqty) : 0,
+            'delivered_quantity'    => $dqty ? (int)str_replace(',', '', $dqty) : 0,
+            'confirmed_quantity'    => $cqty ? (int)str_replace(',', '', $cqty) : 0,
+            'unit_of_measure'       => trim($uom),
+            'batch'                 => trim($batch),
+            'system_status'         => trim($status) ?: null,
+            'start_date'            => $this->dmy_to_iso($startDate),
+            'scheduled_finish_date' => $this->dmy_to_iso($finishDate),
+            'sales_order'           => trim($salesOrder) ?: null,
+            // 'to_forge_qty'          => $orderQuantity - $confirmedQuantity,
+            'created_at'            => date('Y-m-d H:i:s'),
+        ];
+
+        if (count($rows) === 2000) {
+            (new \App\Models\SapTempImportDataModel())->insertBatch($rows);
+            $rows = [];
+        }
+    }
+
+    if ($rows) {
+        (new \App\Models\SapTempImportDataModel())->insertBatch($rows);
     }
 }
+
 
 /**
  * Prepare data for insertion from the Excel sheet
@@ -84,33 +170,38 @@ private function prepareInsertData($sheetData)
 {
     $insertData = [];
     // print_r($sheetData); die();
-    foreach ($sheetData as $row) {
+    foreach ($sheetData as $rawRow) {
+
+        // 1️⃣  normalise keys: 'A ' → 'A'
+        $row = [];
+        foreach ($rawRow as $col => $val) {
+            $row[trim($col)] = $val;
+        }
         // print_r($row);
+        $orderQuantity = $row['E'] ? str_replace(',', '', $row['E']) : 0;
+        $confirmedQuantity = $row['G'] ? str_replace(',', '', $row['G']) : 0;
         $insertData[] = [
             'orderNumber'             => $row['A'] ?? null,
-            'plant'                   => $row['B'] ?? null,
-            'sequenceNumber'          => $row['C'] ?? null,
-            'materialNumber'          => $row['D'] ?? null,
-            'materialDescription'     => $row['E'] ?? null,
-            'orderQuantity_GMEIN'     => $row['F'] ? str_replace(',', '', $row['F']) : null,
-            'deliveredQuantity_GMEIN' => $row['G'] ? str_replace(',', '', $row['G']) : null,
-            'confirmedQuantity_GMEIN' => $row['H'] ? str_replace(',', '', $row['H']) : null,
-            'unitOfMeasure_GMEIN'     => $row['I'] ?? null,
-            'batch'                   => $row['J'] ?? null,
-            'createdOn'               => $row['K'] ?? null,
-            'orderType'               => $row['L'] ?? null,
-            'systemStatus'            => $row['M'] ?? null,
-            'enteredBy'               => $row['N'] ?? null,
-            'postingDate'             => $row['O'] ?? null,
-            'statusProfile'           => $row['P'] ?? null,
+            'materialNumber'          => $row['B'] ?? null,
+            'materialDescription'     => $row['C'] ?? null,
+            'plant'                   => $row['D'] ?? null,
+            'orderQuantity_GMEIN'     => $row['E'] ? str_replace(',', '', $row['E']) : 0,
+            'deliveredQuantity_GMEIN' => $row['F'] ? str_replace(',', '', $row['F']) : 0,
+            'confirmedQuantity_GMEIN' => $row['G'] ? str_replace(',', '', $row['G']) : 0,
+            'unitOfMeasure_GMEIN'     => $row['H'] ?? null,
+            'batch'                   => $row['I'] ?? null,
+            'systemStatus'            => $row['J'] ?? null,
+            'startDate'               => $this->dmy_to_iso($row['K']),
+            'scheduledFinishDate'     => $this->dmy_to_iso($row['L']),
+            'salesOrder'              => $row['M'] ?? null, 
 
-            'forge_commite_week'           => $row['Q'] ?? null,
-            'this_month_forge_qty'           => $row['R'] ?? null,
-            'statusProfile'           => $row['S'] ?? null,
-            'plan_no_of_mc'           => $row['T'] ?? null,
-            'special_remarks'           => $row['U'] ?? null,
-            'advance_final_rm_wt'           => $row['V'] ?? null,
-            'rm_allocation_priority'           => $row['W'] ?? null,
+            'to_forge_qty'            => (int)$orderQuantity - (int)$confirmedQuantity,
+            'forge_commite_week'           => null,
+            'this_month_forge_qty'           => null,
+            'special_remarks'           => null,
+            'monthly_plan'              => null,
+            'monthly_fix_plan'           => null,
+            'rm_allocation_priority'           => null,
 
 
             'insertedTimestamp'       => date('Y-m-d H:i:s'),
@@ -120,6 +211,284 @@ private function prepareInsertData($sheetData)
     }
     return $insertData;
 }
+
+private function dmy_to_iso($value)
+{
+    // Empty cell ⇒ NULL
+    if ($value === null || trim((string) $value) === '') {
+        return null;
+    }
+
+    /* ---------- Excel numeric serial date ---------- */
+    // if (is_numeric($value)) {
+    //     try {
+    //         return ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
+    //     } catch (\Throwable $e) {
+    //         return null;                   // invalid serial number
+    //     }
+    // }
+
+    /* ---------- Try a set of allowed string formats ---------- */
+    $formats = ['!m/d/Y', '!d-m-Y', '!d/m/Y'];   // extend if necessary
+    foreach ($formats as $fmt) {
+        $dt = DateTime::createFromFormat($fmt, trim($value));
+        if ($dt) {
+            $errors = DateTime::getLastErrors();
+            if ($errors === false               // ← parse was perfect
+                || ($errors['warning_count'] === 0 && $errors['error_count'] === 0)
+            ) {
+                return $dt->format('Y-m-d');
+            }
+        }
+    }
+
+    /* ---------- Everything failed ---------- */
+    return null;
+}
+
+
+    public function downloadSAPTemplate(array $data = [], $fileId=null)
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sapTempImportDataModel  = new SapTempImportDataModel();
+        $sheet->setTitle('Data');
+
+        // Add headers
+        $sheet->setCellValue('A1', 'Order');
+        $sheet->setCellValue('B1', 'Material');
+        $sheet->setCellValue('C1', 'Material description');
+        $sheet->setCellValue('D1', 'Plant');
+        $sheet->setCellValue('E1', 'Order quantity');
+        $sheet->setCellValue('F1', 'Delivered quantity');
+        $sheet->setCellValue('G1', 'Confirmed quantity');
+        $sheet->setCellValue('H1', 'Unit of measure');
+        $sheet->setCellValue('I1', 'Batch');
+        $sheet->setCellValue('J1', 'System Status');
+        $sheet->setCellValue('K1', 'Start date (sched)');
+        $sheet->setCellValue('L1', 'Scheduled finish date');
+        $sheet->setCellValue('M1', 'Sales Order');
+
+        // Set minimum column widths
+        $sheet->getColumnDimension('A')->setWidth(20); // Name
+        $sheet->getColumnDimension('B')->setWidth(20); // Name
+        $sheet->getColumnDimension('C')->setWidth(30); // Department
+        $sheet->getColumnDimension('D')->setWidth(10); // Status
+        $sheet->getColumnDimension('E')->setWidth(30); // Start Date
+        $sheet->getColumnDimension('F')->setWidth(30); // End Date
+        $sheet->getColumnDimension('G')->setWidth(30); // End Date
+        $sheet->getColumnDimension('H')->setWidth(30); // End Date
+        $sheet->getColumnDimension('I')->setWidth(30); // End Date
+        $sheet->getColumnDimension('J')->setWidth(40); // End Date
+        $sheet->getColumnDimension('K')->setWidth(30); // End Date
+        $sheet->getColumnDimension('L')->setWidth(30); // End Date
+        $sheet->getColumnDimension('M')->setWidth(30); // End Date
+        if (!empty($data)) {
+            $sheet->setCellValue('N1', 'Error Information');
+            $sheet->getColumnDimension('N')->setWidth(200); // End Date
+        }
+        // Freeze the first row
+        $sheet->freezePane('A2');
+
+
+        // Lock all cells by default (optional)
+        $spreadsheet->getDefaultStyle()->getProtection()->setLocked(Protection::PROTECTION_UNPROTECTED);
+
+        // Lock header row (A1 to E1)
+        $sheet->getStyle('A1:M1')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+
+        // 3. Now protect the sheet
+        $sheet->getProtection()->setSheet(true);
+        $sheet->getProtection()->setPassword('your-secret-password');
+
+        // Add validation for rows 2 to 100
+        for ($row = 2; $row <= 1000; $row++) {
+
+            $sheet->getStyle("K{$row}")
+                ->getNumberFormat()
+                ->setFormatCode('dd-mm-yyyy');
+            $sheet->getStyle("L{$row}")
+                ->getNumberFormat()
+                ->setFormatCode('dd-mm-yyyy');
+
+        
+        }
+        
+        $filename = 'SAPDataTemplate.xlsx';
+
+        /* -----------------------------------------------------------------
+        |  Write data rows if provided
+        |------------------------------------------------------------------
+        |  Mapping:
+        |  A -> Order
+        |  B -> Material
+        |  C -> Material description
+        |  D -> Plant
+        |  E -> Order quantity
+        |  F -> Delivered quantity
+        |  G -> Confirmed quantity
+        |  H -> Unit of measure
+        |  I -> Batch
+        |  J -> System Status
+        |  K -> Start date (sched)
+        |  L -> Scheduled finish date
+        |  M -> Sales Order
+        *-----------------------------------------------------------------*/
+        if (!empty($data)) {
+            $rowNumber = 2;   // first data row
+
+            foreach ($data as $record) {
+
+                // Helper closure: NULL -> ''
+                $v = static fn($key) => empty($record[$key]) ? '' : $record[$key];
+
+                // Convert Y‑m‑d -> Excel serial number (so the date formatting you
+                // already set on columns G,H,I shows dd‑mm‑yyyy in Excel)
+                $ymdToExcel = static function (?string $ymd): string|int {
+                    if (!$ymd) return '';
+                    $ts = strtotime($ymd);
+                    return $ts ? ExcelDate::PHPToExcel($ts) : '';
+                };
+
+                $sheet->setCellValue("A{$rowNumber}", $v('order_number'));
+                $sheet->setCellValue("B{$rowNumber}", $v('material'));
+                $sheet->setCellValue("C{$rowNumber}", $v('material_description'));
+                $sheet->setCellValue("D{$rowNumber}", $v('plant'));
+                $sheet->setCellValue("E{$rowNumber}", $v('order_quantity'));
+                $sheet->setCellValue("F{$rowNumber}", $v('delivered_quantity'));
+                $sheet->setCellValue("G{$rowNumber}", $v('confirmed_quantity'));
+                $sheet->setCellValue("H{$rowNumber}", $v('unit_of_measure'));
+                $sheet->setCellValue("I{$rowNumber}", $v('batch'));
+                $sheet->setCellValue("J{$rowNumber}", $v('system_status'));
+                $sheet->setCellValue("K{$rowNumber}", $ymdToExcel($record['start_date'] ?? null));
+                $sheet->setCellValue("L{$rowNumber}", $ymdToExcel($record['scheduled_finish_date'] ?? null));
+                $sheet->setCellValue("M{$rowNumber}", $v('sales_order'));
+                $sheet->setCellValue("N{$rowNumber}", $v('error_json'));
+
+                $rowNumber++;
+            }
+
+            $filename = 'FailedSAPData.xlsx';
+            $sapTempImportDataModel
+                    ->where('file_id', $fileId)
+                    ->where('error_json !=', '0')
+                    ->delete();
+        }
+
+        // Output
+        $writer = new Xlsx($spreadsheet);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header("Content-Disposition: attachment; filename=\"$filename\"");
+        $writer->save("php://output");
+    }
+
+    public function downloadSAPFailedRecords(){
+        
+        $sapFileImportLogModel  = new SAPFileImportLogModel();
+        $sapTempImportDataModel  = new SapTempImportDataModel();
+        $records = $sapFileImportLogModel->select('*')->orderBy('id', 'DESC')->findAll();
+        $fileId = null;
+        if (count($records) > 0) {
+            $fileId = $records[0]['id'];
+        }
+
+        if($fileId === null){
+            return $this->respond([
+                'data' => '',
+                'status' => 'failed',
+                'message' => 'No record found'
+            ], 200);
+        } else {
+            
+            $rows = $sapTempImportDataModel
+                    ->where('file_id', $fileId)
+                    ->where('error_json !=', '0')
+                    ->findAll();
+    
+            if (!$rows) {
+                 return $this->respond([
+                    'data' => '',
+                    'status' => 'failed',
+                    'message' => 'No record found'
+                ], 200); 
+            } else {
+                
+                $this->downloadSAPTemplate($rows, $fileId);
+                // return $this->respond([
+                //     'data' => $rows,
+                //     'status' => 'success',
+                //     'message' => 'OK'
+                // ], 200); 
+            }
+        }
+    }
+
+    public function triggerSAPFileValidation()
+    {
+        $sapFileImportLogModel  = new SAPFileImportLogModel();
+        $sapTempImportDataModel  = new SapTempImportDataModel();
+        $records = $sapFileImportLogModel->select('*')
+            ->where('status !=', 'completed')
+            ->where('status !=', 'failed')
+            ->orderBy('id', 'DESC')->findAll();
+        $fileId = null;
+        if (count($records) > 0) {
+            $fileId = $records[0]['id'];
+        }
+
+        if($fileId === null){
+            return $this->respond([
+                'data' => '',
+                'status' => 'failed',
+                'message' => 'No record found'
+            ], 200);
+        } else {
+            // Kick off spark command in background
+            $command = 'php ' . ROOTPATH . 'spark validate:sapfiledata ' . escapeshellarg($fileId);
+            $logfile = WRITEPATH . 'logs/cli_job_' . date('Ymd_His') . '.log';
+            // echo $command;
+            // Run the command in background and log output
+            exec("$command > $logfile 2>&1 &");
+
+            // if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+            //     // Windows
+            //     // pclose(popen("start /B \"$command\" > \"$logfile\" 2>&1", "r"));
+            //     pclose(popen("start \"\" /B $command > \"$logfile\" 2>&1", "r"));
+            // } else {
+            //     // Linux / Mac
+            //     exec("$command > \"$logfile\" 2>&1 &");
+            // }
+
+    
+            return $this->respond([
+                'status' => 'success',
+                'message' => 'Validation job started for file ID ' . $fileId,
+                'command' => $command,
+                'OS' => strtoupper(substr(PHP_OS, 0, 3))
+            ], 200);
+        }
+
+    }
+
+
+    public function getSAPFileStatus(){
+        $sapFileImportLogModel  = new SAPFileImportLogModel();
+        $sapTempImportDataModel  = new SapTempImportDataModel();
+
+        $records = $sapFileImportLogModel->select('*')->orderBy('id', 'DESC')->findAll();
+        $failedRecords = $sapTempImportDataModel
+                    ->where('error_json !=', '0')
+                    ->findAll();
+        $total_failed_records = count($failedRecords);
+        $data = null;
+        if (count($records) > 0) {
+            $data = array_merge($records[0], array('total_failed_records'=> $total_failed_records));
+        }
+
+        return $this->respond([
+            'data' => $data
+        ], 200); // HTTP 200 OK
+    }
 
 /**
  * Transfer data from sap_data to sap_data_history
@@ -178,53 +547,79 @@ private function insertSapData($insertData)
     {
         $user = $this->userModel->find(auth()->user()->id);
         // Query params
-        $startDate = $this->request->getGet('start_date');
-        $endDate = $this->request->getGet('end_date');
-        $month_full_year = $this->request->getGet('month_full_year');
-        $weekNumber = $this->request->getGet('week_number');
-        $weekStart = $this->request->getGet('week_start');
-        $weekEnd = $this->request->getGet('week_end');
-        // Query parmas end
+        // $startDate = $this->request->getGet('start_date');
+        // $endDate = $this->request->getGet('end_date');
+        // $month_full_year = $this->request->getGet('month_full_year');
+        // $weekNumber = $this->request->getGet('week_number');
+        // $weekStart = $this->request->getGet('week_start');
+        // $weekEnd = $this->request->getGet('week_end');
+        // // Query parmas end
 
-        // echo $startDate ?? "Not getting startDate";
-        // echo $endDate ?? "Not getting endDate";
-        // echo $month_full_year ?? "Not getting month_full_year";
-        // echo $weekNumber ?? "Not getting weekNumber";
-        // echo $weekStart ?? "Not getting weekStart";
-        // echo $weekEnd ?? "Not getting weekEnd";
-        // die();
+        // // echo $startDate ?? "Not getting startDate";
+        // // echo $endDate ?? "Not getting endDate";
+        // // echo $month_full_year ?? "Not getting month_full_year";
+        // // echo $weekNumber ?? "Not getting weekNumber";
+        // // echo $weekStart ?? "Not getting weekStart";
+        // // echo $weekEnd ?? "Not getting weekEnd";
+        // // die();
 
-        $filters = [
-            // 'wom.customer' => 'Unbrako USA LLC', // Exact match
-            // 'pm.finish' => '2',
-            // 'sap_segment.name' => ['SPM', 'GPM'], // WHERE IN condition
-        ];
+        // $filters = [
+        //     // 'wom.customer' => 'Unbrako USA LLC', // Exact match
+        //     // 'pm.finish' => '2',
+        //     // 'sap_segment.name' => ['SPM', 'GPM'], // WHERE IN condition
+        // ];
 
-        if($startDate and $endDate){
-            $filters["wom.delivery_date" . " >="] = $startDate;
-            $filters["wom.delivery_date" . " <="] = $endDate;
-        } else if ($weekStart and $weekEnd){
-            $filters["wom.delivery_date" . " >="] = $weekStart;
-            $filters["wom.delivery_date" . " <="] = $weekEnd;
-        } else if ($month_full_year){
-            $month_year = explode('/', $month_full_year);
+        // if($startDate and $endDate){
+        //     $filters["wom.delivery_date" . " >="] = $startDate;
+        //     $filters["wom.delivery_date" . " <="] = $endDate;
+        // } else if ($weekStart and $weekEnd){
+        //     $filters["wom.delivery_date" . " >="] = $weekStart;
+        //     $filters["wom.delivery_date" . " <="] = $weekEnd;
+        // } else if ($month_full_year){
+        //     $month_year = explode('/', $month_full_year);
 
-            $filters["YEAR(wom.delivery_date)"] = $month_year[1];
-            $filters["MONTH(wom.delivery_date)"] = $month_year[0];
-        }
-        // if($user->role != 1){
-        //     $filters['modules.responsible'] = auth()->user()->id;
+        //     $filters["YEAR(wom.delivery_date)"] = $month_year[1];
+        //     $filters["MONTH(wom.delivery_date)"] = $month_year[0];
         // }
-        $orderBy = [
-            'wom.delivery_date' => 'DESC',
-        ];
-        $limit = 2000;
-        $offset = 0;
-        $sapData = $this->sapDataModel->getSapData($filters, $orderBy, $limit, $offset);
+        // // if($user->role != 1){
+        // //     $filters['modules.responsible'] = auth()->user()->id;
+        // // }
+        // $orderBy = [
+        //     'wom.delivery_date' => 'DESC',
+        // ];
+        // $limit = 2000;
+        // $offset = 0;
+        // $sapData = $this->sapDataModel->getSapData($filters, $orderBy, $limit, $offset);
 
-        if (!empty($sapData)) {
+        $request = $this->request;
+        $postData = $request->getJSON(true); // Get POST data as array
+
+        // Get page from query param (e.g., ?page=2), default to 1
+        $page = (int) $this->request->getGet('page');
+        $page = max($page, 1); // Ensure at least 1
+        $perPage = 50;
+        $offset = ($page - 1) * $perPage;
+
+        $sapCalculatedSummaryModel = new SapCalculatedSummaryModel();
+        $builder = $sapCalculatedSummaryModel->select('*');
+
+        $countBuilder = clone $builder;
+        $total = $countBuilder->countAllResults(false);
+
+        // Get paginated result
+        $data = $builder->findAll($perPage, $offset);
+
+
+        if (!empty($data)) {
             return $this->respond([
-                'data' => $sapData
+                'data' => $data,
+                'filterData' => $postData,
+                'pagination' => [
+                    'current_page' => $page,
+                    'per_page'     => $perPage,
+                    'total'        => $total,
+                    'last_page'    => ceil($total / $perPage)
+                ]
             ], 200); // HTTP 200 OK
         } else {
             return $this->respond([
@@ -365,12 +760,10 @@ private function insertSapData($insertData)
         $validation = \Config\Services::validation();
 
         $validation->setRules([
-            'forge_commite_week' => 'required|numeric',
+            'forge_commite_week' => 'required|string',
             'this_month_forge_qty' => 'required|numeric',
-            'plan_no_of_mc' => 'required|numeric',
             'special_remarks' => 'permit_empty|string',
             'rm_delivery_date' => 'required|valid_date',
-            'advance_final_rm_wt' => 'required|numeric',
             'rm_allocation_priority' => 'required|string'
         ]);
 
@@ -606,6 +999,83 @@ private function insertSapData($insertData)
             ], 404); // HTTP 404 Not Found
         }
     }
+
+
+    public function loadFilterFields()
+    {
+        $db = Database::connect();
+        $builder = $db->table('sap_calculated_summary');
+
+        // Full list of fields from the table (excluding `id` and `created_at`)
+        $fields = [
+            'sap_id', 'sap_orderNumber', 'pm_order_number', 'systemStatus',
+            'orderQuantity_GMEIN', 'deliveredQuantity_GMEIN', 'confirmedQuantity_GMEIN',
+            'monthly_plan', 'monthly_fix_plan', 'weekly_plan', 'materialNumber', 'materialDescription',
+            'sap_plant', 'wom_plant', 'unitOfMeasure_GMEIN', 'batch', 'work_order',
+            'reciving_date', 'delivery_date', 'wo_add_date', 'work_order_db', 'customer',
+            'responsible_person_name', 'marketing_person_name', 'wom_segment_id', 'wom_segment_name',
+            'quality_inspection_required', 'finish_wt', 'to_forge_qty', 'to_forge_wt',
+            'forged_so_far', 'this_month_forge_wt', 'module_id', 'module_name',
+            'seg2_id', 'seg2_name', 'seg3_id', 'seg3_name', 'finish_id', 'finish_name',
+            'group_id', 'group_name', 'machine_name', 'machine_1_name', 'no_of_machines',
+            'cheese_wt', 'size', 'length', 'spec', 'rod_dia1', 'drawn_dia1',
+            'condition_of_rm', 'pm_special_remarks', 'main_special_remarks', 'pm_bom',
+            'rm_component', 'rm_allocation_priority', 'rm_delivery_date', 'module_multiplier',
+            'to_forge_rm_wt', 'total_allocation', 'total_allocation_2', 'plan_print_qty',
+            'this_month_forge_rm_wt', 'act_allocated_balance_rm_wt', 'allocated_balance_rm_wt',
+            'rm_correction', 'plan_allocation', 'allocated_product_wt', 'allocated_product_qty',
+            'per_of_efficiency', 'machine_speed', 'no_of_shift', 'plan_no_of_machine',
+            'per_day_booking', 'final_pending_qty', 'pending_qty', 'pending_wt', 'pending_rm_wt',
+            'pending_from_outside_1', 'pending_from_outside', 'no_of_days_booking', 'no_of_day_weekly_planning'
+        ];
+
+        $result = [];
+
+        foreach ($fields as $field) {
+            try {
+                $values = $builder->select($field)
+                    ->distinct()
+                    ->where("$field IS NOT", null)
+                    ->orderBy($field, 'asc')
+                    ->get()
+                    ->getResultArray();
+
+                $result[$field] = array_values(array_filter(array_column($values, $field), fn ($val) => $val !== ''));
+            } catch (\Exception $e) {
+                $result[$field] = ['Error' => $e->getMessage()];
+            }
+        }
+
+        return $this->respond($result);
+    }
+
+
+    public function getWeeklyPlanning()
+    {
+        $data = $this->request->getJSON(true); // Get JSON as associative array
+        $moduleId = $data['module_id'] ?? null;
+
+        $model = new SapCalculatedSummaryModel();
+
+        $builder = $model->builder();
+
+        $builder->select('machine_name, no_of_machines, plan_no_of_machine, machine_speed, no_of_shift, per_of_efficiency, no_of_days_booking, pending_wt, no_of_day_weekly_planning, allocated_product_wt');
+
+        if (!empty($moduleId)) {
+            $builder->where('module_id', $moduleId);
+        }
+
+        $builder->groupBy('machine_name');
+        $builder->orderBy('machine_name', 'ASC');
+
+        $result = $builder->get()->getResult();
+
+        return $this->respond([
+            'status' => 'success',
+            'data' => $result
+        ]);
+    }
+
 
 
 }

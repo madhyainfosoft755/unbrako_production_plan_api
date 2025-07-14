@@ -19,7 +19,10 @@ use App\Controllers\Api\MachineRevisionController;
 use App\Controllers\Api\MachineController;
 use App\Controllers\Api\MachineMasterController;
 use App\Controllers\Api\SapDataController;
-
+use App\Controllers\Api\WOMImportController;
+use App\Controllers\Api\PMImportController;
+use App\Controllers\Api\DailyModuleShiftOutputController;
+use App\Controllers\Api\DailyModuleShiftQtyUpdateModelController;
 /**
  * @var RouteCollection $routes
  */
@@ -44,13 +47,21 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
     $routes->post("change-password", [AuthController::class, "changePassword2"]);
     $routes->get("logout", [AuthController::class, "logout"]);
 
-    $routes->get('get-sap-data', 'SapDataController::get_sap_data');
+    $routes->post('get-sap-data', 'SapDataController::get_sap_data');
     $routes->post('m-w-m-w-m-report', 'SapDataController::get_sap_data2'); // module wise - machine wise - monthly report
     $routes->post('m-w-m-w-m-report2', 'SapDataController::get_sap_data3'); // module wise - machine wise - monthly report2
     $routes->post('sap-data/update/(:num)', 'SapDataController::updateRow/$1');
     $routes->post('update-to-forge/(:num)', 'SapDataController::updateToForge/$1');
     $routes->post('update-weekly-forge/(:num)', 'SapDataController::updateWeeklyForge/$1');
     $routes->post('update-forged-so-far/(:num)', 'SapDataController::updateForgedSoFar/$1');
+
+    // sap data 
+    $routes->get('get-sap-file-status', 'SapDataController::getSAPFileStatus');
+    $routes->get('get-sap-failed-records', 'SapDataController::downloadSAPFailedRecords');
+    $routes->get('validate-sap-file', 'SapDataController::triggerSAPFileValidation');
+    $routes->get('download-sap-template', 'SapDataController::downloadSAPTemplate');
+    $routes->get('load-sap-filters', 'SapDataController::loadFilterFields');
+    $routes->post('get-weekly-planning', 'SapDataController::getWeeklyPlanning');
 
 
 });
@@ -109,12 +120,14 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     // Machine
     $routes->post('machines', 'MachineController::addMachine');
     $routes->get('machines', 'MachineController::getAllMachines');
+    $routes->get('all-machines', 'MachineController::allMachines');
     $routes->get('machines/(:num)', 'MachineController::getMachine/$1');
     $routes->put('machines/(:num)', 'MachineController::updateMachine/$1');
+    $routes->post('get-all-machines-with-part-numbers', 'MachineController::GetAllMachinesWithPartNumbers');
 
     // Machine Master CRUD routes
-    $routes->post('machine-master', 'MachineMasterController::addMachineMaster');
-    $routes->get('machine-master', 'MachineMasterController::getAllMachineMaster');
+    $routes->post('add-machine-master', 'MachineMasterController::addMachineMaster');
+    $routes->post('machine-master', 'MachineMasterController::getAllMachineMaster');
     $routes->get('machine-master/(:num)', 'MachineMasterController::getMachineMaster/$1');
     $routes->put('machine-master/(:num)', 'MachineMasterController::updateMachineMaster/$1');
     $routes->get('get-machine-modules/(:num)', 'MachineMasterController::getMachineModules/$1'); 
@@ -122,17 +135,33 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     
     // Work Order Master
     $routes->post('add-work-order-master', 'WorkOrderMasterController::addWorkOrderMaster');
-    $routes->get('work-order-master', 'WorkOrderMasterController::getAllData');
+    $routes->post('work-order-master', 'WorkOrderMasterController::getAllData');
     $routes->get('customer-names/(:any)', 'WorkOrderMasterController::getCustomerNames/$1');
     $routes->patch('work-order-master/(:num)', 'WorkOrderMasterController::updateWorkOrderMaster/$1');
+    $routes->get('download-wom-template', 'WorkOrderMasterController::downloadWOMTemplate');
+    $routes->get('get-work-order-file-upload-status', 'WorkOrderMasterController::getWorkOrderFileUploadStatus');
+    $routes->get('get-work-order-failed-records', 'WorkOrderMasterController::downloadWOMFailedRecords');
+    $routes->get('validate-wom-file', 'WorkOrderMasterController::triggerWOMFileValidation');
 
     // Product Master CRUD routes
-    $routes->post('product-master', 'ProductMasterController::create');
-    $routes->get('product-master', 'ProductMasterController::getAllProductMaster');
+    $routes->post('add-product-master', 'ProductMasterController::create');
+    $routes->post('product-master', 'ProductMasterController::getAllProductMaster');
     $routes->get('product-master/(:num)', 'ProductMasterController::getMachineMaster/$1');
     $routes->put('product-master/(:num)', 'ProductMasterController::update/$1');
+    $routes->get('download-pm-template', 'ProductMasterController::downloadPMTemplate');
+    $routes->get('get-product-master-file-upload-status', 'ProductMasterController::getProductMasterFileUploadStatus');
+    $routes->get('get-product-master-failed-records', 'ProductMasterController::downloadPMFailedRecords');
+    $routes->get('validate-pm-file', 'ProductMasterController::triggerPMFileValidation');
+
+    $routes->post('import/product-master-file', 'PMImportController::upload');
 
     $routes->get('shifts', 'ShiftController::getAllShift');
+    $routes->post('import/work-order-master-file', 'WOMImportController::upload');
+
+    $routes->post('save-daily-data', 'DailyModuleShiftOutputController::saveDailyData');
+    $routes->get('submit-daily-data', 'DailyModuleShiftOutputController::saveSubmitData');
+    $routes->get('get-temp-module-shift-data', 'DailyModuleShiftOutputController::getTempSaveData');
+    $routes->get('get-temp-module-shift-data2', 'DailyModuleShiftOutputController::getTempModuleShiftData');
 
 });
 
