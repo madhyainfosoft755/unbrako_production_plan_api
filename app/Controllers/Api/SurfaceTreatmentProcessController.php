@@ -4,21 +4,19 @@ namespace App\Controllers\Api;
 
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
+use App\Models\SurfaceTreatmentProcessModel;
 
-use App\Models\FinishModel;
-use App\Models\WorkOrderMasterModel;
-
-class FinishController extends ResourceController
+class SurfaceTreatmentProcessController extends ResourceController
 {
-    protected $finishModel;
+    protected $surfaceTreatmentProcessModel;
 
     public function __construct()
     {
         // Load models in the constructor
-        $this->finishModel = new FinishModel();
+        $this->surfaceTreatmentProcessModel = new SurfaceTreatmentProcessModel();
     }
 
-    public function addFinish(){
+    public function addSTProcess(){
         // Get input data
         $data = [
             'name'           => $this->request->getVar('name'),
@@ -26,7 +24,7 @@ class FinishController extends ResourceController
         ];
 
         // Validate the input data
-        if (!$this->validate($this->finishModel->validationRules)) {
+        if (!$this->validate($this->surfaceTreatmentProcessModel->validationRules)) {
             return $this->respond([
                 'status' => false,
                 'message' => 'Validation failed',
@@ -34,8 +32,8 @@ class FinishController extends ResourceController
             ], 400); // HTTP 400 Bad Request
         }
 
-        // Save the roles
-        if ($this->finishModel->insert($data)) {
+        // Save the name
+        if ($this->surfaceTreatmentProcessModel->insert($data)) {
             return $this->respond([
                 'status' => true,
                 'message' => 'Added successfully'
@@ -48,24 +46,11 @@ class FinishController extends ResourceController
         }
     }
 
-    public function getAllFinish(){
-        $finish = $this->finishModel->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
+    public function getAllSTProcess(){
+        $STProcess = $this->surfaceTreatmentProcessModel->select('id, name, created_at')->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
-            'data' => $finish
-        ], 200); // HTTP 200 OK
-    }
-
-    public function getAllWODBandFinish(){
-        $finish = $this->finishModel->select('id, name')->orderBy('name', 'ASC')->findAll();
-        $workOrderMasterModel = new WorkOrderMasterModel();
-        $work_order_db = $workOrderMasterModel->select('id, work_order_db')->orderBy('work_order_db', 'ASC')->findAll();
-
-        return $this->respond([
-            'data' => [
-                'finish' => $finish,
-                'work_order_db' => $work_order_db
-            ]
+            'data' => $STProcess
         ], 200); // HTTP 200 OK
     }
 }

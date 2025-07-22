@@ -137,31 +137,35 @@ class GenerateSapSummary extends BaseCommand
                 'COALESCE(mc.no_of_mc,1) AS machines',
                 'COALESCE(mc.no_of_shift,1) AS shifts',
                 'COALESCE(mc.plan_no_of_mc,1) AS plan_mc',
+                'wom.id AS work_order_master_id',
                 'wom.reciving_date','wom.delivery_date','wom.wo_add_date',
                 'wom.work_order_db','wom.customer','wom.responsible_person_name',
                 'wom.marketing_person_name','wom.segment as wom_segment','wom.plant as wom_plant',
                 'segments.name AS wom_seg_name','wom.quality_inspection_required',
                 'modules.name AS module_name', 'modules.responsible AS module_responsible_person_id',
                 'module_res.name AS module_responsible_person_name',
+                'pm.id AS product_master_id',
                 'pm.seg2 as pm_seg2','seg2.name AS seg2_name',
                 'pm.seg3 as pm_seg3','seg3.name AS seg3_name',
                 'pm.finish AS finish_id','finish.name AS finish_name',
                 'pm.prod_group AS grp_id','groups.name AS grp_name',
                 'pm.cheese_wt','pm.size','pm.length','pm.spec',
                 'pm.rod_dia1','pm.drawn_dia1','pm.condition_of_rm',
-                'pm.special_remarks','pm.bom','pm.rm_component'
+                'pm.special_remarks','pm.bom','pm.rm_component',
+                'stp.name as surface_treatment_process_name', 'stp.id as surface_treatment_process_id'
             ])
             ->join('machine_revisions mr','mr.id=pm.machine','left')  //
             ->join('machines mc','mc.id=mr.machine','left')
-            ->join('modules','modules.id=pm.machine_module','left')
-            ->join('work_order_master wom',"wom.work_order_db = '{$batch}'",'left')   //
+            ->join('modules','modules.id=pm.machine_module','left')  
+            ->join('work_order_master wom',"wom.work_order_db = '{$batch}'",'left')  
             ->join('segments','segments.id=wom.segment','left')
             ->join('finish','finish.id=pm.finish','left')
             ->join('groups','groups.id=pm.prod_group','left')
             ->join('seg_2 seg2','seg2.id=pm.seg2','left')
             ->join('seg_3 seg3','seg3.id=pm.seg3','left')
-            ->join('users module_res','module_res.id=modules.responsible','left')   //
-            ->where('pm.material_number_for_process', $sap['materialNumber'])   //
+            ->join('surface_treatment_process stp','stp.id='.$sap['surface_treatment_process'],'left')
+            ->join('users module_res','module_res.id=modules.responsible','left') 
+            ->where('pm.material_number_for_process', $sap['materialNumber']) 
             ->get()
             ->getRowArray();
 
@@ -171,9 +175,11 @@ class GenerateSapSummary extends BaseCommand
             'machines'=>1,'shifts'=>1,'plan_mc'=>1, 'machine_revision_id'=>null, 'machine_id'=>null,
             'customer'=>null,'quality_inspection_required'=>0, 'wom_plant'=>null, 'wom_segment'=>null, 'wom_seg_name'=>null,
             'pm_seg2'=>null,'seg2_name'=>null,'pm_seg3'=>null,
+            'work_order_master_id' => null,
+            'product_master_id' => null,
             'module_name'=>null, 'module_responsible_person_id'=>null, 'module_responsible_person_name'=>null, 'machine1'=>null,'machine2'=>null,
             'finish_id'=>null,'finish_name'=>null,'sep2_name'=>null,'seg3_name'=>null,
-            'grp_id'=>null,'grp_name'=>null,'cheese_wt'=>0,
+            'grp_id'=>null,'grp_name'=>null,'cheese_wt'=>0, 'surface_treatment_process_name'=>null, 'surface_treatment_process_id'=>null,
             'size'=>null,'length'=>null,'spec'=>null,'rod_dia1'=>null,'drawn_dia1'=>null,
             'condition_of_rm'=>null,'special_remarks'=>null,'bom'=>null,'rm_component'=>null,
             'reciving_date'=>null,'delivery_date'=>null,'wo_add_date'=>null,
@@ -188,7 +194,7 @@ class GenerateSapSummary extends BaseCommand
         $mult = floatval($db->query("SELECT getModuleMultiplier(?) AS m", [$machine_module])->getRow()->m ?? 1.2);
 
         // Calculations
-        $to_forge_qty = intval($sap['to_forge_qty']) - intval($sap['to_forge_limit_inc']);
+        $to_forge_qty = $sap['to_forge_qty'];
         $to_forge_wt = ($to_forge_qty * $finish_wt)/1000;
         $to_forge_rm_wt = $to_forge_wt * $mult;
         $total_alloc2 = min($total_alloc, $to_forge_rm_wt);
@@ -266,6 +272,10 @@ class GenerateSapSummary extends BaseCommand
             'rm_component'                  => $rm_component,
             'rm_delivery_date'              => $sap['rm_delivery_date'],
             'rm_allocation_priority'        => $sap['rm_allocation_priority'],
+            'advance_final_rm_wt'           => $sap['advance_final_rm_wt'],
+            'priority_list'                 => $sap['priority_list'],
+            'surface_treatment_process_id'  => $surface_treatment_process_id,
+            'surface_treatment_process_name'=> $surface_treatment_process_name,
             'finish_wt'                     => $finish_wt,
             'to_forge_qty'                  => $to_forge_qty,
             'to_forge_wt'                   => $to_forge_wt,
@@ -297,6 +307,8 @@ class GenerateSapSummary extends BaseCommand
             'pending_from_outside_1'       => $pending_from_outside_1,
             'pending_from_outside'         => $pending_from_outside,
             'no_of_days_booking'           => $no_days_booking,
+            'work_order_master_id'         => $work_order_master_id,
+            'product_master_id'            => $product_master_id,
             'no_of_day_weekly_planning'    => $weekly_planning_days,
         ]);
     }

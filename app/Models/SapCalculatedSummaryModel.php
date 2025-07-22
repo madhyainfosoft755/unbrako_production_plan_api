@@ -37,4 +37,29 @@ class SapCalculatedSummaryModel extends Model
     {
         throw new \RuntimeException('Read-only model: delete() is not allowed.');
     }
+
+
+    public function getSummaryRows(array $conditions = [], $groupBy = null, $orderBy = null)
+    {
+        $builder = $this->builder();
+        $builder->select('machines.capacity as single_mc_shift_capacity, machines.speed as capacity, machine_id, machine_name, no_of_machines, plan_no_of_machine, machine_speed, sap_calculated_summary.no_of_shift as no_of_shift, sap_calculated_summary.per_of_efficiency as per_of_efficiency, no_of_days_booking, pending_wt, no_of_day_weekly_planning, allocated_product_wt,
+        0 AS rm_tpm_booking,
+        0 AS rm_due_to_development,
+        0 AS gap')
+        ->join('machines', 'machines.id = machine_id', 'left');
+
+        if (!empty($conditions)) {
+            $builder->where($conditions);
+        }
+
+        if($groupBy){
+            $builder->groupBy($groupBy);
+        }
+
+        if($orderBy){
+            $builder->orderBy($orderBy, 'ASC');
+        }
+
+        return $builder->get()->getResultArray();
+    }
 }

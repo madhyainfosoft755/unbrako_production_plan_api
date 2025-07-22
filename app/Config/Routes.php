@@ -23,6 +23,10 @@ use App\Controllers\Api\WOMImportController;
 use App\Controllers\Api\PMImportController;
 use App\Controllers\Api\DailyModuleShiftOutputController;
 use App\Controllers\Api\DailyModuleShiftQtyUpdateModelController;
+use App\Controllers\Api\SurfaceTreatmentProcessController;
+use App\Controllers\Api\MasterTemplatePasswordController;
+use App\Controllers\Api\WeeklyPlanningController;
+use App\Controllers\Api\SapRmUpdateController;
 /**
  * @var RouteCollection $routes
  */
@@ -62,7 +66,28 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
     $routes->get('download-sap-template', 'SapDataController::downloadSAPTemplate');
     $routes->get('load-sap-filters', 'SapDataController::loadFilterFields');
     $routes->post('get-weekly-planning', 'SapDataController::getWeeklyPlanning');
+    $routes->post('update-buld-admin-fields', 'SapDataController::updateBulkAdminFields');
 
+    // Surface Treatment
+    $routes->post('surface-treatment-process', 'SurfaceTreatmentProcessController::addSTProcess');
+    $routes->get('surface-treatment-process', 'SurfaceTreatmentProcessController::getAllSTProcess');
+
+    // Module
+    $routes->post('modules', 'ModulesController::addModule');
+    $routes->get('modules', 'ModulesController::getAllModules');
+
+    $routes->get('get-temp-module-shift-data', 'DailyModuleShiftOutputController::getTempSaveData');
+    $routes->get('get-temp-module-shift-data2', 'DailyModuleShiftOutputController::getTempModuleShiftData');
+
+    $routes->post('get-all-machines-with-part-numbers', 'MachineController::GetAllMachinesWithPartNumbers');
+
+    $routes->post('save-daily-data', 'DailyModuleShiftOutputController::saveDailyData');
+    $routes->get('submit-daily-data', 'DailyModuleShiftOutputController::saveSubmitData');
+
+    $routes->post('get-sap-rm-data', 'SapRmUpdateController::index');
+    $routes->post('update-sap-rm-data', 'SapRmUpdateController::create');
+    $routes->post('add-part-number-sap/(:num)', 'SapDataController::addPartNumber/$1');
+    $routes->get('load-sap-filter-suggestions', 'SapDataController::loadSapFilterSuggestions');
 
 });
 
@@ -71,6 +96,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
 // Admin Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth", "admin_access"]], function($routes) {
     $routes->post('transfer-and-upload', 'SapDataController::index');
+    
     // roles
     $routes->post('roles', 'RolesController::addRole');
     $routes->get('roles', 'RolesController::getAllRoles');
@@ -82,6 +108,11 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     // finish
     $routes->post('finish', 'FinishController::addFinish');
     $routes->get('finish', 'FinishController::getAllFinish');
+    $routes->get('get-all-wo-db-and-finish', 'FinishController::getAllWODBandFinish');
+
+    // Master Template Passwords
+    $routes->get('get-master-template-passwords', 'MasterTemplatePasswordController::getTemplatePasswords');
+    
 
     // groups
     $routes->post('groups', 'GroupsController::addGroup');
@@ -103,10 +134,6 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('plant', 'PlantController::addPlant');
     $routes->get('plant', 'PlantController::getAllPlant');
 
-    // Module
-    $routes->post('modules', 'ModulesController::addModule');
-    $routes->get('modules', 'ModulesController::getAllModules');
-
     // Customers
     // $routes->post('customers', 'CustomersController::addCustomer');
     // $routes->get('customers', 'CustomersController::getAllCustomers');
@@ -115,6 +142,14 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('machine-revisions/(:num)', 'MachineRevisionController::addMachineRevision/$1');
     $routes->get('machine-revisions/(:num)', 'MachineRevisionController::getMachineRevisions/$1');
     $routes->post('get-machine-for-modules', 'MachineRevisionController::getMachineForModules'); 
+    
+    // Surface Treatment
+    $routes->post('surface-treatment-process', 'SurfaceTreatmentProcessController::addSTProcess');
+    // Module
+    $routes->post('modules', 'ModulesController::addModule');
+    
+    $routes->post('complete-weekly-report-for-module', 'WeeklyPlanningController::completeWeeklyReportForMoudle');
+    $routes->post('update-weekly-report-fields', 'WeeklyPlanningController::updateWeeklyReportFields');
 
 
     // Machine
@@ -123,7 +158,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->get('all-machines', 'MachineController::allMachines');
     $routes->get('machines/(:num)', 'MachineController::getMachine/$1');
     $routes->put('machines/(:num)', 'MachineController::updateMachine/$1');
-    $routes->post('get-all-machines-with-part-numbers', 'MachineController::GetAllMachinesWithPartNumbers');
+    
 
     // Machine Master CRUD routes
     $routes->post('add-machine-master', 'MachineMasterController::addMachineMaster');
@@ -152,16 +187,13 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->get('get-product-master-file-upload-status', 'ProductMasterController::getProductMasterFileUploadStatus');
     $routes->get('get-product-master-failed-records', 'ProductMasterController::downloadPMFailedRecords');
     $routes->get('validate-pm-file', 'ProductMasterController::triggerPMFileValidation');
+    $routes->get('check-part-number/(:any)', 'ProductMasterController::checkPartNumber/$1');
 
     $routes->post('import/product-master-file', 'PMImportController::upload');
 
     $routes->get('shifts', 'ShiftController::getAllShift');
     $routes->post('import/work-order-master-file', 'WOMImportController::upload');
-
-    $routes->post('save-daily-data', 'DailyModuleShiftOutputController::saveDailyData');
-    $routes->get('submit-daily-data', 'DailyModuleShiftOutputController::saveSubmitData');
-    $routes->get('get-temp-module-shift-data', 'DailyModuleShiftOutputController::getTempSaveData');
-    $routes->get('get-temp-module-shift-data2', 'DailyModuleShiftOutputController::getTempModuleShiftData');
+    
 
 });
 

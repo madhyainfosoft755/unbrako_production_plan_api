@@ -18,6 +18,7 @@ use App\Models\FinishModel;
 use App\Models\GroupsModel;
 use App\Models\ModulesModel;
 use App\Models\MachineRevisionModel;
+use App\Models\MasterTemplatesPasswordModel;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -44,6 +45,7 @@ class ProductMasterController extends ResourceController
     protected $format    = 'json';
     protected $pm_file_import_log_model;
     protected $pm_temp_import_products_model;
+    protected $masterTemplatesPasswordModel;
 
     public function __construct()
     {
@@ -58,6 +60,7 @@ class ProductMasterController extends ResourceController
         $this->modulesModel = new ModulesModel();
         $this->machineRevisionModel = new MachineRevisionModel();
         $this->pm_file_import_log_model = new PMFileImportLogModel();
+        $this->masterTemplatesPasswordModel = new MasterTemplatesPasswordModel();
         $this->pm_temp_import_products_model = new PMTempImportProductModel();
     }
 
@@ -477,6 +480,23 @@ class ProductMasterController extends ResourceController
             'data' => $data
         ], 200); // HTTP 200 OK
     }
+
+    public function checkPartNumber($partNumber){
+
+        $existing = $this->productMasterModel
+            ->where('material_number', $partNumber)
+            ->first();
+
+        if($existing){
+            return $this->respond([
+                'data' => $existing
+            ], 200);
+        } else {
+            return $this->respond([
+                'message' => 'Not Found'
+            ], 404);
+        }
+    }
     
 
     public function downloadPMTemplate(array $data = [], $fileId=null)
@@ -553,7 +573,10 @@ class ProductMasterController extends ResourceController
 
         // Protect the sheet with optional password
         $sheet->getProtection()->setSheet(true);
-        $sheet->getProtection()->setPassword('your-secret-password');
+        helper('string');
+
+        $passwordForTemplate = generateRandomString(10);
+        $sheet->getProtection()->setPassword($passwordForTemplate);
 
         // Dropdown options
         $machines = $this->machineRevisionModel->select('name')->orderBy('name', 'asc')->findAll();
@@ -757,6 +780,21 @@ class ProductMasterController extends ResourceController
                     ->where('file_id', $fileId)
                     ->where('error_json !=', '0')
                     ->delete();
+        } else {
+            $templateName = 'Product Master Template';
+            // Check if record exists
+            $existing = $this->masterTemplatesPasswordModel->where('template_name', $templateName)->first();
+
+            if ($existing) {
+                // Update password
+                $this->masterTemplatesPasswordModel->update($existing['id'], ['password' => $passwordForTemplate]);
+            } else {
+                // Insert new
+                $newId = $this->masterTemplatesPasswordModel->insert([
+                    'template_name' => $templateName,
+                    'password'      => $passwordForTemplate
+                ]);
+            }
         }
 
 

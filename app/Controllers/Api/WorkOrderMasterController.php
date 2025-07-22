@@ -11,6 +11,7 @@ use App\Models\CustomersModel;
 use App\Models\SegmentsModel;
 use App\Models\WOMFileImportLogModel;
 use App\Models\WOMTempImportWorkOrderModel;
+use App\Models\MasterTemplatesPasswordModel;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -29,6 +30,7 @@ class WorkOrderMasterController extends ResourceController
     protected $segmentsModel;
     protected $wom_file_import_log_model;
     protected $wom_temp_import_work_order_model;
+    protected $masterTemplatesPasswordModel;
 
     public function __construct()
     {
@@ -37,6 +39,7 @@ class WorkOrderMasterController extends ResourceController
         $this->plantModel = new PlantModel();
         $this->customersModel = new CustomersModel();
         $this->segmentsModel = new SegmentsModel();
+        $this->masterTemplatesPasswordModel = new MasterTemplatesPasswordModel();
         $this->wom_file_import_log_model = new WOMFileImportLogModel();
         $this->wom_temp_import_work_order_model = new WOMTempImportWorkOrderModel();
     }
@@ -430,7 +433,10 @@ class WorkOrderMasterController extends ResourceController
 
         // 3. Now protect the sheet
         $sheet->getProtection()->setSheet(true);
-        $sheet->getProtection()->setPassword('your-secret-password');
+        helper('string');
+
+        $passwordForTemplate = generateRandomString(10);
+        $sheet->getProtection()->setPassword($passwordForTemplate);
 
         // Dropdown options
         $segments = $this->segmentsModel->select('name')->orderBy('name', 'asc')->findAll();
@@ -536,6 +542,21 @@ class WorkOrderMasterController extends ResourceController
                     ->where('file_id', $fileId)
                     ->where('error_json !=', '0')
                     ->delete();
+        } else {
+            $templateName = 'WorkOrder Master Template';
+            // Check if record exists
+            $existing = $this->masterTemplatesPasswordModel->where('template_name', $templateName)->first();
+
+            if ($existing) {
+                // Update password
+                $this->masterTemplatesPasswordModel->update($existing['id'], ['password' => $passwordForTemplate]);
+            } else {
+                // Insert new
+                $newId = $this->masterTemplatesPasswordModel->insert([
+                    'template_name' => $templateName,
+                    'password'      => $passwordForTemplate
+                ]);
+            }
         }
 
         // Output

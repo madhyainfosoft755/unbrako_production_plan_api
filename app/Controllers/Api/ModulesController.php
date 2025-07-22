@@ -6,6 +6,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
 
 use App\Models\ModulesModel;
+use App\Models\WeeklyPlanningModel;
 
 class ModulesController extends ResourceController
 {
@@ -54,8 +55,17 @@ class ModulesController extends ResourceController
             ->join('roles', 'roles.id = users.role')
             ->orderBy('name', 'ASC')->findAll();
 
+        $weeklyPlanningModel = new WeeklyPlanningModel();
+        helper('week_calc');
+        $data = get_current_week_info();
+        $savedModules = $weeklyPlanningModel->where([
+            'week_number' => $data['week_number'],
+            'is_permanent'=> 1
+        ])->findAll();
+
         return $this->respond([
-            'data' => $modules
+            'data' => $modules,
+            'savedModules'=>$savedModules
         ], 200); // HTTP 200 OK
     }
 }

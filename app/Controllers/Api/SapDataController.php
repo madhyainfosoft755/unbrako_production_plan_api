@@ -18,6 +18,13 @@ use DateTime;
 use App\Models\SAPFileImportLogModel;
 use App\Models\SapTempImportDataModel;
 use App\Models\SapCalculatedSummaryModel;
+use App\Models\MasterTemplatesPasswordModel;
+use App\Models\SurfaceTreatmentProcessModel;
+use App\Models\WeeklyPlanningModel;
+use App\Models\WeeklyPlanningDataModel;
+use App\Models\WorkOrderMasterModel;
+use App\Models\ProductMasterModel;
+use App\Models\FinishModel;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -31,6 +38,7 @@ class SapDataController extends ResourceController
     protected $sapDataModel;
     protected $userModel;
     protected $WeeklyPeriodsModel;
+    protected $masterTemplatesPasswordModel;
 
     public function __construct()
     {
@@ -38,6 +46,7 @@ class SapDataController extends ResourceController
         $this->sapDataModel = new SapDataModel();
         $this->userModel = new CustomUserModel();
         $this->weeklyPeriodsModel = new WeeklyPeriodsModel();
+        $this->masterTemplatesPasswordModel = new MasterTemplatesPasswordModel();
         $this->current_date = date('Y-m-d');
     }
      
@@ -299,7 +308,10 @@ private function dmy_to_iso($value)
 
         // 3. Now protect the sheet
         $sheet->getProtection()->setSheet(true);
-        $sheet->getProtection()->setPassword('your-secret-password');
+        helper('string');
+
+        $passwordForTemplate = generateRandomString(10);
+        $sheet->getProtection()->setPassword($passwordForTemplate);
 
         // Add validation for rows 2 to 100
         for ($row = 2; $row <= 1000; $row++) {
@@ -373,6 +385,21 @@ private function dmy_to_iso($value)
                     ->where('file_id', $fileId)
                     ->where('error_json !=', '0')
                     ->delete();
+        } else {
+            $templateName = 'SAP Data Template';
+            // Check if record exists
+            $existing = $this->masterTemplatesPasswordModel->where('template_name', $templateName)->first();
+
+            if ($existing) {
+                // Update password
+                $this->masterTemplatesPasswordModel->update($existing['id'], ['password' => $passwordForTemplate]);
+            } else {
+                // Insert new
+                $newId = $this->masterTemplatesPasswordModel->insert([
+                    'template_name' => $templateName,
+                    'password'      => $passwordForTemplate
+                ]);
+            }
         }
 
         // Output
@@ -603,6 +630,39 @@ private function insertSapData($insertData)
         $sapCalculatedSummaryModel = new SapCalculatedSummaryModel();
         $builder = $sapCalculatedSummaryModel->select('*');
 
+        // Handle filters
+        if (!empty($postData['filterBy']) && is_array($postData['filterBy'])) {
+            foreach ($postData['filterBy'] as $field => $filter) {
+                // print_r($field);
+                // print_r($filter);
+                // die();
+                if (!isset($filter['value']) || !is_array($filter['value'])) {
+                    continue; // skip invalid filter
+                }
+
+                $values = $filter['value'];
+                $builder->whereIn($field, $values);
+                // if (count($values) === 2 && $values[0] !== null && $values[1] !== null) {
+                //     // Apply BETWEEN condition
+                //     $builder->where("{$field} >=", $values[0]);
+                //     $builder->where("{$field} <=", $values[1]);
+                // }
+            }
+        }
+
+        // Handle order by
+        if (!empty($postData['orderBy']) && isset($postData['orderBy']['field']) && isset($postData['orderBy']['value'])) {
+            $field = $postData['orderBy']['field'];
+            $direction = $postData['orderBy']['value'];
+
+            if ($direction == 1) {
+                $builder->orderBy($field, 'ASC');
+            } elseif ($direction == -1) {
+                $builder->orderBy($field, 'DESC');
+            }
+            // If value is not 1 or -1, skip ordering
+        }
+
         $countBuilder = clone $builder;
         $total = $countBuilder->countAllResults(false);
 
@@ -623,8 +683,16 @@ private function insertSapData($insertData)
             ], 200); // HTTP 200 OK
         } else {
             return $this->respond([
-                'message' => 'No data found.'
-            ], 404); // HTTP 404 Not Found
+                'message' => 'No data found.',
+                'data' => [],
+                'filterData' => $postData,
+                'pagination' => [
+                    'current_page' => $page,
+                    'per_page'     => $perPage,
+                    'total'        => $total,
+                    'last_page'    => ceil($total / $perPage)
+                ]
+            ], 200); // HTTP 404 Not Found
         }
     }
 
@@ -1057,26 +1125,317 @@ private function insertSapData($insertData)
 
         $model = new SapCalculatedSummaryModel();
 
-        $builder = $model->builder();
+        // $builder = $model->builder();
 
-        $builder->select('machine_name, no_of_machines, plan_no_of_machine, machine_speed, no_of_shift, per_of_efficiency, no_of_days_booking, pending_wt, no_of_day_weekly_planning, allocated_product_wt');
+        // $builder->select('machine_name, no_of_machines, plan_no_of_machine, machine_speed, no_of_shift, per_of_efficiency, no_of_days_booking, pending_wt, no_of_day_weekly_planning, allocated_product_wt');
 
+        // if (!empty($moduleId)) {
+        //     $builder->where('module_id', $moduleId);
+        // }
+
+        // $builder->groupBy('machine_name');
+        // $builder->orderBy('machine_name', 'ASC');
+
+        // $result = $builder->get()->getResult();
+
+        $filterArray = [];
         if (!empty($moduleId)) {
-            $builder->where('module_id', $moduleId);
+            $filterArray = ['module_id' => $moduleId ];
         }
 
-        $builder->groupBy('machine_name');
-        $builder->orderBy('machine_name', 'ASC');
+        $result = $model->getSummaryRows($filterArray, 'machine_name', 'machine_name');
 
-        $result = $builder->get()->getResult();
+        $weeklyPlanningModel = new WeeklyPlanningModel();
+
+        if($moduleId){
+            helper('week_calc');
+            $data = get_current_week_info();
+            // Check if record already exists
+            $existing = $weeklyPlanningModel->where([
+                'module'      => $moduleId,
+                'week_number' => $data['week_number'],
+            ])->first();
+            $weeklyPlanId = null;
+            $existingUnSavedData = [];
+            $weeklyPlanningDataModel = new WeeklyPlanningDataModel();
+            if ($existing) {
+                $weeklyPlanId = $existing['id'];
+                if($existing['is_permanent'] == 1){
+                    $data = $weeklyPlanningDataModel->where([
+                        'weekly_planning_id'      => $existing['id']
+                    ])->orderBy('machine_name', 'ASC')->findAll();
+                    return $this->respond([
+                        'status' => 'exists',
+                        'data'   => $data
+                    ]);
+                } else {
+                    $existingUnSavedData = $weeklyPlanningDataModel->where('weekly_planning_id',$weeklyPlanId)->findAll();
+                    $weeklyPlanningDataModel->where('weekly_planning_id',$weeklyPlanId)->delete();
+                }
+            } else {
+                // Prepare insert data (make sure required fields are provided)
+                $insertData = [
+                    'module'      => $moduleId,
+                    'week_number' => $data['week_number'],
+                    'start_date'  => $data['start_date'] ?? null,
+                    'end_date'    => $data['end_date'] ?? null,
+                    'timestamp'   => date('Y-m-d H:i:s'),
+                    'user'        => null,
+                ];
+    
+                if (!$weeklyPlanningModel->insert($insertData)) {
+                    return $this->failServerError('Failed to insert record');
+                }
+    
+                $weeklyPlanId = $weeklyPlanningModel->getInsertID();
+            }
+
+            $insertWeeklyPlanningData = [];
+                
+            foreach ($result as $row) {
+                $data = $this->_getExtraDetails($weeklyPlanningDataModel, $existingUnSavedData, $row['machine_id'], $weeklyPlanId);
+                $rowData = [
+                    'weekly_planning_id'=> $weeklyPlanId,
+                    'machine_id'  => $row['machine_id'],
+                    'machine_name'  => $row['machine_name'],
+                    'no_of_machines'  => $row['no_of_machines'],
+                    'plan_no_of_machines'  => $row['plan_no_of_machine'],
+                    'machine_speed'  => $row['machine_speed'],
+                    'no_of_shift'  => $row['no_of_shift'],
+                    'per_of_efficiency'  => $row['per_of_efficiency'],
+                    'no_of_days_booking'  => $row['no_of_days_booking'],
+                    'pending_wt'  => $row['pending_wt'],
+                    'no_of_day_weekly_planning'  => $row['no_of_day_weekly_planning'],
+                    'allocated_product_wt'  => $row['allocated_product_wt'],
+                    'capacity'  => $row['capacity'],
+                    'single_mc_shift_capacity'  => $row['single_mc_shift_capacity'],
+                    'rm_tpm_booking'  => empty($data) ? '' : $data['rm_tpm_booking'],
+                    'rm_due_to_development'  => empty($data) ? '' : $data['rm_due_to_development'],
+                    'gap'  => empty($data) ? '' : $data['gap'],
+                ];
+
+                array_push($insertWeeklyPlanningData, $rowData);
+            }
+            // print_r($insertWeeklyPlanningData); die();
+            if(!empty($insertWeeklyPlanningData)){
+                if (!$weeklyPlanningDataModel->insertBatch($insertWeeklyPlanningData)) {
+                    return $this->failServerError('Failed to insert record');
+                }
+            }
+        }
 
         return $this->respond([
             'status' => 'success',
-            'data' => $result
+            'data' => $insertWeeklyPlanningData
+        ]);
+    }
+
+    private function _getExtraDetails($weeklyPlanningDataModel, $existingUnSavedData, $machineId, $weeklyPlanId){
+        foreach ($existingUnSavedData as $row) {
+            if($row['machine_id'] == $machineId && $row['weekly_planning_id'] == $weeklyPlanId){
+                return $row;
+            }
+        }
+        return '';
+    }
+
+
+    public function loadSapFilterSuggestions(){
+        $fields = [
+            'monthly_plan',
+            'monthly_fix_plan',
+            'forge_commite_week',
+            'priority_list',
+            'special_remarks',
+        ];
+
+        $result = [];
+
+        foreach ($fields as $field) {
+            try {
+                $values = $this->sapDataModel->select($field)
+                    ->distinct()
+                    ->where("$field IS NOT", null)
+                    ->orderBy($field, 'asc')
+                    ->get()
+                    ->getResultArray();
+
+                $result[$field] = array_values(array_filter(array_column($values, $field), fn ($val) => $val !== ''));
+            } catch (\Exception $e) {
+                $result[$field] = ['Error' => $e->getMessage()];
+            }
+        }
+
+        return $this->respond($result);
+    }
+
+
+
+    public function updateBulkAdminFields()
+    {
+        $data = $this->request->getJSON(true);
+
+        if (!isset($data['sap_ids']) || !is_array($data['sap_ids']) || count($data['sap_ids']) === 0) {
+            return $this->fail('sap_ids is required and must be a non-empty array.');
+        }
+
+        $sapIds = array_filter($data['sap_ids'], fn($id) => is_numeric($id));
+        $sapDataModel = new SapDataModel();
+
+        // Validate foreign key (if provided)
+        if (isset($data['surface_treatment_process']) && $data['surface_treatment_process'] !== '') {
+            $surfaceId = (int) $data['surface_treatment_process'];
+            if ($surfaceId <= 0) {
+                return $this->fail('Invalid surface_treatment_process ID.');
+            }
+
+            $surfaceModel = new SurfaceTreatmentProcessModel();
+            if (!$surfaceModel->find($surfaceId)) {
+                return $this->fail('surface_treatment_process ID not found.');
+            }
+        }
+
+        // Validate string fields
+        $stringFields = ['monthly_plan', 'monthly_fix_plan', 'forge_commite_week', 'priority_list', 'special_remarks'];
+        $updateFields = [];
+        foreach ($stringFields as $field) {
+            if (array_key_exists($field, $data)) {
+                if (is_null($data[$field])) {
+                    return $this->fail("$field cannot be null.");
+                }
+                if (is_string($data[$field]) && trim($data[$field]) !== '') {
+                    // unset($data[$field]); // skip empty strings
+                    $updateFields[$field] = trim($data[$field]);
+                }
+            }
+        }
+
+        if (isset($surfaceId)) {
+            $updateFields['surface_treatment_process'] = $surfaceId;
+        }
+
+        // Final update data to apply to each row
+        // $updateFields = array_intersect_key($data, array_flip(array_merge($stringFields, ['surface_treatment_process'])));
+        if (empty($updateFields)) {
+            return $this->fail('No valid update fields provided.');
+        }
+
+        // Build array for batch update
+        $batchUpdateData = [];
+        foreach ($sapIds as $id) {
+            if ($sapDataModel->find($id)) {
+                $row = array_merge(['id' => $id], $updateFields);
+                $batchUpdateData[] = $row;
+            }
+        }
+
+        // print_r($batchUpdateData);
+        // die();
+
+        if (!empty($batchUpdateData)) {
+            $sapDataModel->updateBatch($batchUpdateData, 'id');
+        }
+
+        return $this->respond([
+            'message' => 'Batch update completed.',
+            'updated_count' => count($batchUpdateData),
+            'updated_ids' => array_column($batchUpdateData, 'id'),
+            'fields_updated' => array_keys($updateFields)
         ]);
     }
 
 
+    public function addPartNumber($id = null)
+    {
+        $requestData = $this->request->getJSON(true); // Get JSON body as array
+
+        if (!$id || !is_numeric($id)) {
+            return $this->failValidationErrors('Invalid or missing ID in URL.');
+        }
+
+        // Check if Work Order exists
+        $workOrderModel = new WorkOrderMasterModel();
+        $workOrder = $workOrderModel->find($id);
+
+        if (!$workOrder) {
+            return $this->failNotFound("Work order with ID $id not found.");
+        }
+
+        $data = $requestData['parts'] ?? [];
+
+        if (!is_array($data) || empty($data)) {
+            return $this->failValidationErrors('Invalid or missing data array.');
+        }
+
+        $productModel = new ProductMasterModel();
+        $finishModel = new FinishModel();
+
+        $success = [];
+        $failed = [];
+
+        foreach ($data as $row) {
+            $errors = [];
+
+            $partId = $row['part_number'] ?? null;
+            // $finishId = $row['finish'] ?? null;
+            $quantity = $row['quantity'] ?? null;
+
+            // Check product exists
+            if (!$partId || !$productModel->where('material_number', $partId)->first()) {
+                $errors[] = 'Invalid part_number';
+            }
+
+            $partInfo = $productModel->where('material_number', $partId)->first();
+            // print_r($partInfo); die();
+            // Check finish exists (optional check: only if finish is not null)
+            // if ($finishId !== null && !$finishModel->find($finishId)) {
+            //     $errors[] = 'Invalid finish';
+            // }
+
+            // Validate quantity
+            if (!is_numeric($quantity)) {
+                $errors[] = 'Quantity must be numeric';
+            }
+
+            if (!empty($errors)) {
+                $failed[] = [
+                    'row' => $row,
+                    'errors' => $errors
+                ];
+            } else {
+                $success[] = [
+                    'orderNumber' => $partInfo['order_number'],
+                    'plant' => $workOrder['plant'],
+                    'batch' => $workOrder['work_order_db'],
+                    'materialNumber'  => $partInfo['material_number'],
+                    'materialDescription'  => $partInfo['material_description'],
+                    'to_forge_qty'  => (int)$quantity,
+                    // 'finish_id' => $finishId,
+                    'orderQuantity_GMEIN' => $quantity,
+                    'insertedBy' => user_id()
+                ];
+            }
+        }
+
+        // print_r($success); 
+        // print_r($failed);die();
+
+        if (!empty($failed)) {
+            return $this->fail([
+                'message' => 'Some rows failed validation.',
+                'errors' => $failed
+            ]);
+        }
+
+        // Insert into SapDataModel
+        $sapModel = new SapDataModel();
+        // $sapModel->insertBatch($success);
+
+        return $this->respondCreated([
+            'message' => 'Data inserted successfully.',
+            'inserted_count' => count($success)
+        ]);
+    }
 
 }
 
