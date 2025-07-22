@@ -92,3 +92,9 @@ define('EVENT_PRIORITY_NORMAL', 100);
  * @deprecated Use \CodeIgniter\Events\Events::PRIORITY_HIGH instead.
  */
 define('EVENT_PRIORITY_HIGH', 10);
+
+defined('ROLE_ADMIN')    || define('ROLE_ADMIN', 'ADMIN');
+defined('ROLE_FORGING')     || define('ROLE_FORGING', 'FORGING');
+defined('ROLE_HEATING')  || define('ROLE_HEATING', 'HEATING');
+defined('ROLE_FINISH')  || define('ROLE_FINISH', 'FINISH');
+defined('ROLE_RM')  || define('ROLE_RM', 'RM');

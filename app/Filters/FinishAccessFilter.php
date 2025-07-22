@@ -37,7 +37,7 @@ class FinishAccessFilter implements FilterInterface
             ])->setStatusCode(404);
         }
 
-        if ($userDetails['role'] != 1 || $userDetails['role'] != 4) {
+        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_FINISH) {
             return service('response')->setJSON([
                 'status' => false,
                 'message' => 'Unauthorized Access!',

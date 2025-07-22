@@ -38,7 +38,7 @@ class AdminAccessFilter implements FilterInterface
             ])->setStatusCode(404);
         }
 
-        if (auth()->user()->role != 1) {
+        if (auth()->user()->role != ROLE_ADMIN) {
             return service('response')->setJSON([
                 'status' => false,
                 'message' => 'Unauthorized Access!',

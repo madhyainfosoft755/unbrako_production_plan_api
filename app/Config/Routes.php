@@ -98,7 +98,6 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('transfer-and-upload', 'SapDataController::index');
     
     // roles
-    $routes->post('roles', 'RolesController::addRole');
     $routes->get('roles', 'RolesController::getAllRoles');
 
     // segments

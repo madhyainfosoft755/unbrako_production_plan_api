@@ -37,7 +37,7 @@ class ForgingAccessFilter implements FilterInterface
             ])->setStatusCode(404);
         }
 
-        if ($userDetails['role'] != 1 || $userDetails['role'] != 2) {
+        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_FORGING) {
             return service('response')->setJSON([
                 'status' => false,
                 'message' => 'Unauthorized Access!',

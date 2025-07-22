@@ -50,9 +50,8 @@ class ModulesController extends ResourceController
     }
 
     public function getAllModules(){
-        $modules = $this->modulesModel->select('modules.id, modules.name, users.name as responsible, roles.role as role, modules.created_at')
+        $modules = $this->modulesModel->select('modules.id, modules.name, users.name as responsible, users.role as role, modules.created_at')
             ->join('users', 'users.id = modules.responsible')
-            ->join('roles', 'roles.id = users.role')
             ->orderBy('name', 'ASC')->findAll();
 
         $weeklyPlanningModel = new WeeklyPlanningModel();

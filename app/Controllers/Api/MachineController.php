@@ -130,28 +130,11 @@ class MachineController extends ResourceController
     }
 
     public function getAllMachines(){
-        $machines = $this->machineRevisionModel->select('machine_revisions.id, 
-                                machine_revisions.name as machine_1, 
-                                machine_revisions.created_at, 
-                                machine_revisions.disabled, 
-                                machines.name as machine_name, 
-                                machines.speed as speed, 
-                                machines.no_of_mc as no_of_mc, 
-                                process.name as process')
-                                ->join('machines', 'machines.id = machine_revisions.machine')
-                                ->join('process', 'process.id = machines.process')
-            ->orderBy('machines.name', 'ASC')->findAll();
-
-        $mappedMachines = array();
-        foreach ($machines as $machine) {
-            $machine['shifts'] = $this->machineShifts->select('shifts.number')
-            ->join('shifts', 'shifts.id = machine_shifts.shift')
-            ->where('machine_shifts.machine', $machine['id'])->findAll();
-            array_push($mappedMachines, $machine);
-        }
+        $machines = $this->machineModel->select('id, name, no_of_mc, process, speed, no_of_shift, capacity, plan_no_of_mc, per_of_efficiency, created_at')
+            ->orderBy('name', 'ASC')->findAll();
 
         return $this->respond([
-            'data' => $mappedMachines
+            'data' => $machines
         ], 200); // HTTP 200 OK
     }
 

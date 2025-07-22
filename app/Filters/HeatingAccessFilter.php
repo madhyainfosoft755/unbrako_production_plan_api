@@ -5,6 +5,7 @@ namespace App\Filters;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+require_once APPPATH . 'Config/Constants.php';
 
 class HeatingAccessFilter implements FilterInterface
 {
@@ -37,7 +38,7 @@ class HeatingAccessFilter implements FilterInterface
             ])->setStatusCode(404);
         }
 
-        if ($userDetails['role'] != 1 || $userDetails['role'] != 3) {
+        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_HEATING) {
             return service('response')->setJSON([
                 'status' => false,
                 'message' => 'Unauthorized Access!',
