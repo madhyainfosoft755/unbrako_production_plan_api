@@ -47,7 +47,7 @@ class WorkOrderMasterModel extends Model
     // Validation
     protected $validationRules      = [
         'plant'      => 'required',
-        'work_order_db'      => 'required|string|max_length[6]',
+        'work_order_db'      => 'required|string|max_length[6]|is_unique[work_order_master.work_order_db]',
         'customer'      => 'required'
     ];
     protected $validationMessages   = [

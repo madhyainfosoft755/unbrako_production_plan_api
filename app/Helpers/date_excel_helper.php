@@ -2,7 +2,7 @@
 
 // use DateTime;
 
-function excelDateToYmd(string $excelDate): ?string
+function excelDateToYmd($excelDate): ?string
 {
     // Expecting dd-mm-yyyy or dd/mm/yyyy
     $excelDate = trim($excelDate);

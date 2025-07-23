@@ -35,8 +35,8 @@ class ProductMasterModel extends Model
 
     // Validation
     protected $validationRules      = [
-        'order_number'       => 'required|max_length[10]|is_unique[product_master.order_number]',
-        'material_number'    => 'required|max_length[10]',
+        'order_number'       => 'required|max_length[10]',
+        'material_number'    => 'required|max_length[10]|is_unique[product_master.material_number]',
         'material_description' => 'required|max_length[1000]',
         'unit_of_measure'    => 'required|max_length[5]',
         'machine'            => 'required|integer',

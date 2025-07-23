@@ -80,6 +80,9 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
         $mainModel   = new WorkOrderMasterModel();
         $segmentIds  = $this->prefetchSegments(); // name=>id map
 
+        // Load all valid product material numbers
+        $validWorkOrderDb = array_column($mainModel->select('work_order_db')->findAll(), 'work_order_db');
+
         $batchSize = 1000;
         while (true) {
             $chunk = $tempModel
@@ -88,7 +91,7 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
                 ->limit($batchSize)
                 ->get()
                 ->getResultArray();
-            print_r($chunk);
+            // print_r($chunk);
             if (!$chunk) {
                 break;
             }
@@ -99,11 +102,11 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
             $noErrorRows   = [];
 
             foreach ($chunk as $row) {
-                $errors = $this->validateRow($row, $segmentIds);
-                print_r($row);
-                echo 'error';
-                print_r($errors);
-                print_r(count($errors) > 0 ? 'has errors' : 'no errors');
+                $errors = $this->validateRow($row, $segmentIds, $validWorkOrderDb);
+                // print_r($row);
+                // echo 'error';
+                // print_r($errors);
+                // print_r(count($errors) > 0 ? 'has errors' : 'no errors');
                 if (count($errors) > 0) {
                     $errorRows[] = ['id' => $row['id'], 'error_json' => json_encode($errors)];
                 } else {
@@ -124,11 +127,11 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
                     $noErrorRows[] = ['id' => $row['id'], 'error_json' => '0'];
                     $validRows[] = $dataForMain;
                     array_push($validRowIds, $row['id']);
-                    print_r('dataForMain');
-                    print_r($dataForMain);
+                    // print_r('dataForMain');
+                    // print_r($dataForMain);
                 }
-                print_r('validRows');
-                print_r($validRows);
+                // print_r('validRows');
+                // print_r($validRows);
                 
             }
 
@@ -142,10 +145,17 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
                 echo 'Inserting ' . count($validRows) . ' valid rows…';
 
                 $tempModel->updateBatch($noErrorRows, 'id');
-                $mainModel->insertBatch($validRows);
-                print_r($validRowIds);
-                $tempModel->whereIn('id', $validRowIds)
-                    ->delete(); // remove from temp table
+                $result = $mainModel->insertBatch($validRows);
+                if (!$result) {
+                    echo "insertBatch failed:" . PHP_EOL;
+                    print_r($mainModel->errors());     // Validation errors
+                    print_r($mainModel->db->error());  // Database errors
+                } else {
+                    echo "Inserted successfully." . PHP_EOL;
+
+                    $tempModel->whereIn('id', $validRowIds)
+                        ->delete();
+                }
               
             }
 
@@ -177,9 +187,13 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
         return $map;
     }
 
-    protected function validateRow(array $row, array $segmentIds): array
+    protected function validateRow(array $row, array $segmentIds, $validWorkOrderDb): array
     {
         $e = [];
+
+        if (in_array(trim($row['work_order_db']), $validWorkOrderDb)) {
+            $e['work_order_db'] = 'Work order code already found in work order master';
+        }
 
         if ($row['plant'] === '')   $e['plant'] = 'Required';
         if ($row['work_order_db'] === '' || strlen($row['work_order_db']) > 5)

@@ -192,6 +192,6 @@ class ValidateSapFileData extends BaseCommand
             'processed_at' => date('Y-m-d H:i:s')
         ]);
 
-        CLI::write("SAP Data import complete ✅");
+        CLI::write("SAP Data import complete");
     }
 }
