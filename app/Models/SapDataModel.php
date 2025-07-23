@@ -87,7 +87,6 @@ class SapDataModel extends Model
                     pm.machine_module as module_id,
                     pm.seg2 as seg2_id,
                     pm.seg3 as seg3_id,
-                    mr.name as machine_1_name,
                     mc.name as machine_name,
                     mc.speed as machine_speed,
                     mc.no_of_mc,
@@ -99,8 +98,7 @@ class SapDataModel extends Model
                     groups.name as prod_group_name',)
             ->join('work_order_master wom', 'wom.work_order_db = derived.work_order', 'left')
             ->join('product_master pm', 'pm.material_number_for_process = derived.materialNumber', 'left')
-            ->join('machine_revisions mr', 'mr.id = pm.machine', 'left')
-            ->join('machines mc', 'mc.id = mr.machine', 'left')
+            ->join('machines mc', 'mc.id = pm.machine', 'left')
             ->join('modules', 'modules.id = pm.machine_module', 'left')
             ->join('groups', 'groups.id = pm.prod_group', 'left')
             ->join('users sap_responsible', 'sap_responsible.id = modules.responsible', 'left')
@@ -159,7 +157,6 @@ class SapDataModel extends Model
             // pm.machine_module as module_id,
             // pm.seg2 as seg2_id,
             // pm.seg3 as seg3_id,
-            // mr.name as machine_1_name,
             // mc.name as machine_name,
             // mc.speed as machine_speed,
             // mc.no_of_mc,
@@ -183,10 +180,8 @@ class SapDataModel extends Model
             //     ON wom.work_order_db = derived.work_order
             // INNER JOIN product_master as pm
             //     ON pm.material_number_for_process = derived.materialNumber
-            // INNER JOIN machine_revisions as mr
-            //     ON mr.id = pm.machine
             // INNER JOIN machines mc
-            //     ON mc.id = mr.machine
+            //     ON mc.id = pm.machine
             // INNER JOIN modules ON
             //     modules.id = pm.machine_module
             // INNER JOIN users sap_responsible

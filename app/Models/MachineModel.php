@@ -17,6 +17,10 @@ class MachineModel extends Model
         "no_of_mc",
         "process",
         "speed",
+        "no_of_shift",
+        "capacity",
+        "plan_no_of_mc",
+        "per_of_efficiency",
         "created_by",
         "updated_by"
     ];
@@ -36,23 +40,54 @@ class MachineModel extends Model
 
     // Validation
     protected $validationRules      = [
-        "name"=> 'required|string|max_length[50]|is_unique[machines.name]',
-        "no_of_mc"=> 'required',
-        "process"=> 'required'
+        "no_of_mc"            => 'required|numeric|greater_than_equal_to[1]',
+        "process"             => 'required',
+        "speed"               => 'required|numeric|greater_than_equal_to[1]',
+        "no_of_shift"         => 'required|numeric|greater_than_equal_to[1]',
+        "capacity"            => 'required|numeric|greater_than_equal_to[1]',
+        "plan_no_of_mc"       => 'required|numeric|greater_than_equal_to[1]',
+        "per_of_efficiency"   => 'required|numeric|greater_than_equal_to[1]',
     ];
-    protected $validationMessages   = [
-        'no_of_mc'      => [
-            'required' => 'Count is required'
+    protected $validationMessages = [
+        'name' => [
+            'required'    => 'Name is required',
+            'string'      => 'Name must be a string',
+            'max_length'  => 'Name must be less than 50 characters',
+            'is_unique'   => 'Name already exists',
         ],
-        'process'      => [
-            'required' => 'Process is required'
+        'no_of_mc' => [
+            'required'                 => 'Count is required',
+            'numeric'                  => 'Count must be a number',
+            'greater_than_equal_to'   => 'Count must be at least 1',
         ],
-        'name'      => [
-            'required' => 'Name is required', 
-            'string' => 'Name must be a string',
-            'max_length' => 'Name must be less than 50 characters',
-            'is_unique' => "Name already exists"
-        ]
+        'process' => [
+            'required' => 'Process is required',
+        ],
+        'speed' => [
+            'required'                 => 'Speed is required',
+            'numeric'                  => 'Speed must be a number',
+            'greater_than_equal_to'   => 'Speed must be at least 1',
+        ],
+        'no_of_shift' => [
+            'required'                 => 'Number of shifts is required',
+            'numeric'                  => 'Number of shifts must be a number',
+            'greater_than_equal_to'   => 'Number of shifts must be at least 1',
+        ],
+        'capacity' => [
+            'required'                 => 'Capacity is required',
+            'numeric'                  => 'Capacity must be a number',
+            'greater_than_equal_to'   => 'Capacity must be at least 1',
+        ],
+        'plan_no_of_mc' => [
+            'required'                 => 'Planned machine count is required',
+            'numeric'                  => 'Planned machine count must be a number',
+            'greater_than_equal_to'   => 'Planned machine count must be at least 1',
+        ],
+        'per_of_efficiency' => [
+            'required'                 => 'Efficiency is required',
+            'numeric'                  => 'Efficiency must be a number',
+            'greater_than_equal_to'   => 'Efficiency must be at least 1',
+        ],
     ];
     protected $skipValidation       = false;
     protected $cleanValidationRules = true;

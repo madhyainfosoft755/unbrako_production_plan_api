@@ -7,7 +7,6 @@ use CodeIgniter\RESTful\ResourceController;
 
 use App\Models\MachineMasterModel;
 use CodeIgniter\API\ResponseTrait;
-use App\Models\MachineShifts;
 use App\Models\ProductMasterModel;
 
 
@@ -17,7 +16,7 @@ use App\Models\Seg3Model;
 use App\Models\FinishModel;
 use App\Models\GroupsModel;
 use App\Models\ModulesModel;
-use App\Models\MachineRevisionModel;
+use App\Models\MachineModel;
 use App\Models\MasterTemplatesPasswordModel;
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -33,7 +32,6 @@ class ProductMasterController extends ResourceController
     use ResponseTrait;
 
     protected $machineModel;
-    protected $machineShifts;
     protected $productMasterModel;
     protected $segmentsModel;
     protected $seg2Model;
@@ -41,7 +39,7 @@ class ProductMasterController extends ResourceController
     protected $finishModel;
     protected $groupsModel;
     protected $modulesModel;
-    protected $machineRevisionModel;
+    protected $machineMainModel;
     protected $format    = 'json';
     protected $pm_file_import_log_model;
     protected $pm_temp_import_products_model;
@@ -50,7 +48,6 @@ class ProductMasterController extends ResourceController
     public function __construct()
     {
         $this->machineModel = new MachineMasterModel();
-        $this->machineShifts = new MachineShifts();
         $this->productMasterModel = new ProductMasterModel();
         $this->segmentsModel = new SegmentsModel();
         $this->seg2Model = new Seg2Model();
@@ -58,7 +55,7 @@ class ProductMasterController extends ResourceController
         $this->finishModel = new FinishModel();
         $this->groupsModel = new GroupsModel();
         $this->modulesModel = new ModulesModel();
-        $this->machineRevisionModel = new MachineRevisionModel();
+        $this->machineMainModel = new MachineModel();
         $this->pm_file_import_log_model = new PMFileImportLogModel();
         $this->masterTemplatesPasswordModel = new MasterTemplatesPasswordModel();
         $this->pm_temp_import_products_model = new PMTempImportProductModel();
@@ -256,16 +253,13 @@ class ProductMasterController extends ResourceController
                     machines.name as machine_name, 
                     responsible.name as responsible_name, 
                     product_master.special_remarks, product_master.bom, product_master.rm_component,
-                    machine_revisions.name as machine_1, 
                     seg_2.name as seg2_name, 
                     seg_3.name as seg3_name, 
                     modules.name as module_name,
                     segments.name as segment_name, 
                     finish.name as finish_name, 
                     groups.name as group_name')
-            ->join('machine_revisions', 'machine_revisions.id = product_master.machine', 'inner')
-            ->join('machines', 'machines.id = machine_revisions.machine', 'inner')
-            // ->join('machine_module_master', 'machine_module_master.machine_rev = machine_revisions.id', 'left')
+            ->join('machines', 'machines.id = product_master.machine', 'inner')
             ->join('modules', 'modules.id = product_master.machine_module', 'left')
             ->join('users as responsible', 'responsible.id = modules.responsible', 'left')
             ->join('seg_2', 'seg_2.id = product_master.seg2', 'left')
@@ -312,7 +306,7 @@ class ProductMasterController extends ResourceController
         }
 
         if (!empty($machine)) {
-            $builder->where('machine_revisions.id', $machine);
+            $builder->where('machines.id', $machine);
         }
 
         if (!empty($machine_module)) {
@@ -411,9 +405,8 @@ class ProductMasterController extends ResourceController
                 machines.name AS machine_name, 
                 machines.speed AS speed
             ')
-            ->join('machine_revisions', 'machine_revisions.id = product_master.machine')
-            ->join('machines', 'machines.id = machine_revisions.machine')
-            ->where('machine_revisions.name', $machine_rev_name)
+            ->join('machines', 'machines.id = product_master.machine')
+            ->where('machines.name', $machine_rev_name)
             ->orderBy('product_master.material_number', 'ASC')->get()
             ->getResultArray();
 
@@ -428,17 +421,15 @@ class ProductMasterController extends ResourceController
         $productMaster = $this->productMasterModel->select('product_master.*, 
                     machines.name as machine_name, 
                     responsible.name as responsible_name, 
-                    product_master.special_remarks, product_master.bom, product_master.rm_component,
-                    machine_revisions.name as machine_1, 
+                    product_master.special_remarks, product_master.bom, product_master.rm_component, 
                     seg_2.name as seg2_name, 
                     seg_3.name as seg3_name, 
                     modules.name as module_name,
                     segments.name as segment_name, 
                     finish.name as finish_name, 
                     groups.name as group_name')
-            ->join('machine_revisions', 'machine_revisions.id = product_master.machine', 'inner')
-            ->join('machines', 'machines.id = machine_revisions.machine', 'inner')
-            ->join('machine_module_master', 'machine_module_master.machine_rev = machine_revisions.id', 'inner')
+            ->join('machines', 'machines.id = product_master.machine', 'inner')
+            ->join('machine_module_master', 'machine_module_master.machine_rev = machines.id', 'inner')
             ->join('modules', 'modules.id = machine_module_master.module', 'inner')
             ->join('users as responsible', 'responsible.id = modules.responsible', 'inner')
             ->join('seg_2', 'seg_2.id = product_master.seg2', 'left')
@@ -579,7 +570,7 @@ class ProductMasterController extends ResourceController
         $sheet->getProtection()->setPassword($passwordForTemplate);
 
         // Dropdown options
-        $machines = $this->machineRevisionModel->select('name')->orderBy('name', 'asc')->findAll();
+        $machines = $this->machineMainModel->select('name')->orderBy('name', 'asc')->findAll();
         $machineArr = array_column($machines, 'name');
         $machines_row = 1;
         foreach (array_merge(['Machines'], $machineArr) as $item) {

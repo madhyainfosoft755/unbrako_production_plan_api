@@ -131,8 +131,8 @@ class GenerateSapSummary extends BaseCommand
             ->select([
                 'pm.finish_wt',      'pm.machine_module',
                 'COALESCE(mc.per_of_efficiency,60) AS per_eff',
-                'mr.id AS machine_revision_id', 'mc.id AS machine_id',
-                'mr.name AS machine1', 'mc.name AS machine2',
+                'mc.id AS machine_id',
+                'mc.name AS machine_name',
                 'COALESCE(mc.speed,50) AS speed',
                 'COALESCE(mc.no_of_mc,1) AS machines',
                 'COALESCE(mc.no_of_shift,1) AS shifts',
@@ -154,8 +154,7 @@ class GenerateSapSummary extends BaseCommand
                 'pm.special_remarks','pm.bom','pm.rm_component',
                 'stp.name as surface_treatment_process_name', 'stp.id as surface_treatment_process_id'
             ])
-            ->join('machine_revisions mr','mr.id=pm.machine','left')  //
-            ->join('machines mc','mc.id=mr.machine','left')
+            ->join('machines mc','mc.id=pm.machine','left')
             ->join('modules','modules.id=pm.machine_module','left')  
             ->join('work_order_master wom',"wom.work_order_db = '{$batch}'",'left')  
             ->join('segments','segments.id=wom.segment','left')
@@ -172,12 +171,12 @@ class GenerateSapSummary extends BaseCommand
         // Fallback if not found
         $row = $row ?? [
             'finish_wt' => 0, 'machine_module'=>null, 'per_eff'=>60, 'speed'=>50,
-            'machines'=>1,'shifts'=>1,'plan_mc'=>1, 'machine_revision_id'=>null, 'machine_id'=>null,
+            'machines'=>1,'shifts'=>1,'plan_mc'=>1, 'machine_id'=>null,
             'customer'=>null,'quality_inspection_required'=>0, 'wom_plant'=>null, 'wom_segment'=>null, 'wom_seg_name'=>null,
             'pm_seg2'=>null,'seg2_name'=>null,'pm_seg3'=>null,
             'work_order_master_id' => null,
             'product_master_id' => null,
-            'module_name'=>null, 'module_responsible_person_id'=>null, 'module_responsible_person_name'=>null, 'machine1'=>null,'machine2'=>null,
+            'module_name'=>null, 'module_responsible_person_id'=>null, 'module_responsible_person_name'=>null, 'machine_name'=>null,
             'finish_id'=>null,'finish_name'=>null,'sep2_name'=>null,'seg3_name'=>null,
             'grp_id'=>null,'grp_name'=>null,'cheese_wt'=>0, 'surface_treatment_process_name'=>null, 'surface_treatment_process_id'=>null,
             'size'=>null,'length'=>null,'spec'=>null,'rod_dia1'=>null,'drawn_dia1'=>null,
@@ -254,9 +253,7 @@ class GenerateSapSummary extends BaseCommand
             'group_id'                      => $grp_id,
             'group_name'                    => $grp_name,
             'machine_id'                    => $machine_id,
-            'machine_revision_id'           => $machine_revision_id,
-            'machine_name'                  => $machine2,
-            'machine_1_name'                => $machine1,
+            'machine_name'                  => $machine_name,
             'no_of_machines'                => $machines,
             'quality_inspection_required'   => $quality_inspection_required ?? 0,
             'cheese_wt'                     => $cheese_wt,

@@ -5,16 +5,19 @@ namespace App\Controllers\Api;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
 
-use App\Models\MachineRevisionModel;
+use App\Models\MachineMasterModel;
+use App\Models\MachineModel;
 
 class MachineRevisionController extends ResourceController
 {
-    protected $MachineRevisionModel;
+    protected $machineMasterModel;
+    protected $machineModel;
 
     public function __construct()
     {
         // Load models in the constructor
-        $this->MachineRevisionModel = new MachineRevisionModel();
+        $this->machineMasterModel = new MachineMasterModel();
+        $this->machineModel = new MachineModel();
     }
 
     public function addMachineRevision($machine_id){
@@ -26,7 +29,7 @@ class MachineRevisionController extends ResourceController
         ];
 
         // Validate the input data
-        if (!$this->validate($this->MachineRevisionModel->validationRules)) {
+        if (!$this->validate($this->machineMasterModel->validationRules)) {
             return $this->respond([
                 'status' => false,
                 'message' => 'Validation failed',
@@ -36,7 +39,7 @@ class MachineRevisionController extends ResourceController
 
         // Save the name
         try {
-            if ($this->MachineRevisionModel->insert($data)) {
+            if ($this->machineMasterModel->insert($data)) {
                 return $this->respond([
                     'status' => true,
                     'message' => 'Added successfully'
@@ -95,44 +98,12 @@ class MachineRevisionController extends ResourceController
         }
     }
 
-    // public function getMachineRevisions($machine_id){
-    //     $machineRevisions = $this->MachineRevisionModel->select('machine_revisions.id as id, machines.name as machine, machine_revisions.name')
-    //         ->join('machines', 'machines.id = machine_revisions.machine')
-    //         ->where('machine_revisions.machine', $machine_id)
-    //         ->orderBy('machine_revisions.name', 'ASC')->findAll();
-
-    //     return $this->respond([
-    //         'data' => $machineRevisions
-    //     ], 200); // HTTP 200 OK
-    // }
-
-
-    public function getMachineRevisions($machine_rev_id){
-        $machineRevisions = $this->MachineRevisionModel->select('machine_revisions.id as rev_id, machine_revisions.name as machine_rev, machine_revisions.machine AS machine_id, machines.name as machine_name,machines.speed as speed, machines.no_of_mc as no_of_mc, process.name as process, machine_revisions.disabled as disabled')
-            ->join('machines', 'machines.id = machine_revisions.machine')
-            ->join('process', 'process.id = machines.process')
-            ->where('machine_revisions.id', $machine_rev_id)
-            // ->orderBy('machines.name', 'ASC')
-            // ->orderBy('machine_revisions.name', 'ASC')
-            ->findAll();
-
-        return $this->respond([
-            'data' => $machineRevisions
-        ], 200); // HTTP 200 OK
-    }
-
 
     public function machinesInfo(){
-        $data = $this->MachineRevisionModel->select('
-                machine_revisions.machine AS machine_id, 
-                machines.name AS machine_name, 
-                machine_revisions.id AS rev_id, 
-                machine_revisions.name AS machine_rev, 
-                machine_revisions.disabled AS disabled
-            ')
-            ->join('machines', 'machines.id = machine_revisions.machine')
-            ->orderBy('machines.name', 'ASC')
-            ->orderBy('machine_revisions.name', 'ASC')
+        $data = $this->machineModel->select('
+                id AS machine_id, 
+                name AS machine_name')
+            ->orderBy('name', 'ASC')
             ->findAll();
 
         return $this->respond([
@@ -144,18 +115,13 @@ class MachineRevisionController extends ResourceController
 
     public function getMachineForModules(){
         $moduleIds = $this->request->getVar('moduleIds');
-        $data = $this->MachineRevisionModel->select('
-                machine_revisions.machine AS machine_id, 
-                machines.name AS machine_name, 
-                machine_revisions.id AS rev_id, 
-                machine_revisions.name AS machine_rev, 
-                machine_revisions.disabled AS disabled
+        $data = $this->machineMasterModel->select('
+                machines.id AS machine_id, 
+                machines.name AS machine_name
             ')
-            ->join('machines', 'machines.id = machine_revisions.machine')
-            ->join('machine_module_master', 'machine_module_master.machine_rev = machine_revisions.id')
+            ->join('machines', 'machine_module_master.machine_rev = machines.id')
             ->whereIn('machine_module_master.module', $moduleIds)
-            ->orderBy('machines.name', 'ASC')
-            ->orderBy('machine_revisions.name', 'ASC')
+            ->orderBy('name', 'ASC')
             ->findAll();
 
         return $this->respond([

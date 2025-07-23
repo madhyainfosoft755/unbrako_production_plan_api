@@ -169,7 +169,7 @@ class ValidateProductMasterFileData extends BaseCommand
         );
 
         return [
-            'machine_name' => $map('machine_revisions'),
+            'machine_name' => $map('machines'),
             'module'  => $map('modules'),
             'seg2'    => $map('seg_2'),
             'seg3'    => $map('seg_3'),

@@ -758,7 +758,6 @@ private function insertSapData($insertData)
         //     pm.machine_module as module_id,
         //     pm.seg2 as seg2_id,
         //     pm.seg3 as seg3_id,
-        //     mr.name as machine_1_name,
         //     mc.name as machine_name,
         //     mc.speed as machine_speed,
         //     mc.no_of_mc,
@@ -782,10 +781,8 @@ private function insertSapData($insertData)
         //         ON wom.work_order_db = derived.work_order
         //     LEFT JOIN product_master as pm
         //         ON pm.material_number_for_process = derived.materialNumber
-        //     LEFT JOIN machine_revisions as mr
-        //         ON mr.id = pm.machine
         //     LEFT JOIN machines mc
-        //         ON mc.id = mr.machine
+        //         ON mc.id = pm.machine
         //     LEFT JOIN modules ON
         //         modules.id = pm.machine_module
         //     LEFT JOIN users sap_responsible
@@ -1085,7 +1082,7 @@ private function insertSapData($insertData)
             'quality_inspection_required', 'finish_wt', 'to_forge_qty', 'to_forge_wt',
             'forged_so_far', 'this_month_forge_wt', 'module_id', 'module_name',
             'seg2_id', 'seg2_name', 'seg3_id', 'seg3_name', 'finish_id', 'finish_name',
-            'group_id', 'group_name', 'machine_name', 'machine_1_name', 'no_of_machines',
+            'group_id', 'group_name', 'machine_name', 'no_of_machines',
             'cheese_wt', 'size', 'length', 'spec', 'rod_dia1', 'drawn_dia1',
             'condition_of_rm', 'pm_special_remarks', 'main_special_remarks', 'pm_bom',
             'rm_component', 'rm_allocation_priority', 'rm_delivery_date', 'module_multiplier',

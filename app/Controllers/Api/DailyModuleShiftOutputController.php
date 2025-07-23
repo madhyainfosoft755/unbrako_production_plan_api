@@ -180,12 +180,12 @@ class DailyModuleShiftOutputController extends ResourceController
             $success = 'success';
             $moduleShiftId = $existing['id'];
             $data =  $this->daily_module_shift_qty_update_model
-                ->select('daily_module_shift_qty_update.*, machine_revisions.name as machine_name, 
+                ->select('daily_module_shift_qty_update.*, machines.name as machine_name, 
                     modules.name as module_name, sap_data.to_forge_qty, sap_data.forged_so_far')
                 ->where('module_shift_id', $moduleShiftId)
                 ->join('sap_data', 'sap_data.id = daily_module_shift_qty_update.sap_id', 'left')
                 ->join('modules', 'modules.id = daily_module_shift_qty_update.module_id', 'left')
-                ->join('machine_revisions', 'machine_revisions.id = daily_module_shift_qty_update.machine_id', 'left')
+                ->join('machines', 'machines.id = daily_module_shift_qty_update.machine_id', 'left')
                 ->findAll();
         }
         return $this->respondCreated([

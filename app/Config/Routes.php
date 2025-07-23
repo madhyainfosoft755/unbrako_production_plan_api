@@ -139,7 +139,6 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     
     // Machine Revisions
     $routes->post('machine-revisions/(:num)', 'MachineRevisionController::addMachineRevision/$1');
-    $routes->get('machine-revisions/(:num)', 'MachineRevisionController::getMachineRevisions/$1');
     $routes->post('get-machine-for-modules', 'MachineRevisionController::getMachineForModules'); 
     
     // Surface Treatment
@@ -162,7 +161,6 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     // Machine Master CRUD routes
     $routes->post('add-machine-master', 'MachineMasterController::addMachineMaster');
     $routes->post('machine-master', 'MachineMasterController::getAllMachineMaster');
-    $routes->get('machine-master/(:num)', 'MachineMasterController::getMachineMaster/$1');
     $routes->put('machine-master/(:num)', 'MachineMasterController::updateMachineMaster/$1');
     $routes->get('get-machine-modules/(:num)', 'MachineMasterController::getMachineModules/$1'); 
     //  $routes->delete('machine-master/(:num)', 'MachineMasterController::deleteMachineMaster/$1');

@@ -34,7 +34,7 @@ class FinishController extends ResourceController
             ], 400); // HTTP 400 Bad Request
         }
 
-        // Save the roles
+        
         if ($this->finishModel->insert($data)) {
             return $this->respond([
                 'status' => true,
