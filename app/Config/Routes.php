@@ -96,6 +96,8 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
 // Admin Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth", "admin_access"]], function($routes) {
     $routes->post('transfer-and-upload', 'SapDataController::index');
+
+    $routes->post('user/update/(:num)', 'AuthController::updateUserDetailsByAdmin/$1');
     
     // roles
     $routes->get('roles', 'RolesController::getAllRoles');

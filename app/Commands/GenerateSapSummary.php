@@ -162,7 +162,7 @@ class GenerateSapSummary extends BaseCommand
             ->join('groups','groups.id=pm.prod_group','left')
             ->join('seg_2 seg2','seg2.id=pm.seg2','left')
             ->join('seg_3 seg3','seg3.id=pm.seg3','left')
-            ->join('surface_treatment_process stp','stp.id='.$sap['surface_treatment_process'],'left')
+            ->join('surface_treatment_process stp','stp.id=1','left')  // need to change
             ->join('users module_res','module_res.id=modules.responsible','left') 
             ->where('pm.material_number_for_process', $sap['materialNumber']) 
             ->get()

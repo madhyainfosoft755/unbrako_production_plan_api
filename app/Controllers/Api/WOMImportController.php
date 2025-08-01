@@ -7,6 +7,7 @@ use App\Models\WOMTempImportWorkOrderModel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
+use DateTime;
 
 class WOMImportController extends ResourceController
 {
@@ -80,11 +81,11 @@ class WOMImportController extends ResourceController
                 'responsible_person_name' => trim($respName),
                 'segment_name'            => trim($segmentName),
                 'marketing_person_name'   => trim($mktName),
-                'wo_add_date'             => excelDateToYmd($woDate),
-                'reciving_date'           => excelDateToYmd($recvDate),
-                'delivery_date'           => excelDateToYmd($delDate),
+                'wo_add_date'             => $this->dmy_to_iso($woDate),
+                'reciving_date'           => $this->dmy_to_iso($recvDate),
+                'delivery_date'           => $this->dmy_to_iso($delDate),
                 'no_of_items'             => is_numeric($items) ? (int)$items : null,
-                'weight'                  => is_numeric($weight) ? number_format($weight, 2, '.', '') : null,
+                'weight'                  => is_numeric($weight) ? number_format($weight, 5, '.', '') : null,
                 'created_at'              => date('Y-m-d H:i:s'),
             ];
 
@@ -97,6 +98,40 @@ class WOMImportController extends ResourceController
         if ($rows) {
             (new WOMTempImportWorkOrderModel())->insertBatch($rows);
         }
+    }
+
+    private function dmy_to_iso($value)
+    {
+        // Empty cell ⇒ NULL
+        if ($value === null || trim((string) $value) === '') {
+            return null;
+        }
+
+        /* ---------- Excel numeric serial date ---------- */
+        // if (is_numeric($value)) {
+        //     try {
+        //         return ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
+        //     } catch (\Throwable $e) {
+        //         return null;                   // invalid serial number
+        //     }
+        // }
+
+        /* ---------- Try a set of allowed string formats ---------- */
+        $formats = ['!m/d/Y', '!d-m-Y', '!d/m/Y'];   // extend if necessary
+        foreach ($formats as $fmt) {
+            $dt = DateTime::createFromFormat($fmt, trim($value));
+            if ($dt) {
+                $errors = DateTime::getLastErrors();
+                if ($errors === false               // ← parse was perfect
+                    || ($errors['warning_count'] === 0 && $errors['error_count'] === 0)
+                ) {
+                    return $dt->format('Y-m-d');
+                }
+            }
+        }
+
+        /* ---------- Everything failed ---------- */
+        return null;
     }
 
 }

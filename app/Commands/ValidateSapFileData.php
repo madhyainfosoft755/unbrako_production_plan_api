@@ -178,7 +178,7 @@ class ValidateSapFileData extends BaseCommand
 
                 $temp->updateBatch($noErrorRows, 'id');
                 $final->insertBatch($valid);
-                print_r($validRowIds);
+                // print_r($validRowIds);
                 $temp->whereIn('id', $validRowIds)
                     ->delete(); // remove from temp table
               

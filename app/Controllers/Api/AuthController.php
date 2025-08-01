@@ -862,4 +862,103 @@ class AuthController extends ResourceController
     }
 
 
+    public function updateUserDetailsByAdmin($id){
+        // $user = service('auth')->user(); // Get the authenticated user
+        if ($id == null) {
+            return $this->respond([
+                "status" => false,
+                "message" => "User ID is required"
+            ], 400);
+        }
+
+        $modelObject = new CustomUserModel();
+        $user = $modelObject->find($id);
+
+        if (!$user) {
+            return $this->respond([
+                "status" => false,
+                "message" => "User not found"
+            ], 404);
+        }
+        
+        $loggedInUser = auth()->user();
+
+        $data = $this->request->getJSON();
+        
+        // Validation rules
+        $validation = service('validation');
+        $validation->setRules([
+            'email'      => 'permit_empty|valid_email|max_length[255]',
+            'email_add'  => 'permit_empty|valid_email|max_length[255]',
+            'emp_id'     => 'permit_empty|string|max_length[50]',
+            'salutation' => 'permit_empty|string|max_length[10]',
+            'active'     => 'permit_empty',
+        ]);
+
+        if (!$validation->run((array) $data)) {
+            return $this->failValidationErrors($validation->getErrors());
+        }
+
+        // Update user details
+        // $userData = [];
+
+        if (isset($data->email)) {
+            $user->setEmail($data->email);
+            $user->email_add = $data->email;
+        }
+        if (isset($data->emp_id)) {
+            // $userData['emp_id'] = $data->emp_id;
+            $user->emp_id = $data->emp_id;
+        }
+        if (isset($data->name)) {
+            // $userData['name'] = $data->name;
+            $user->name = $data->name;
+        }
+        if (isset($data->role)) {
+            // $userData['role'] = $data->role;
+            $user->role = $data->role;
+        }
+        if (isset($data->salutation)) {
+            // $userData['salutation'] = $data->salutation;
+            $user->salutation = $data->salutation;
+        }
+        if (isset($data->active)) {
+            // $userData['active'] = $data->active;
+            $user->active = $data->active;
+        }
+
+        if (isset($data->password)) {
+            $newPassword = $data->password;
+            // Password will be automatically hashed if model uses entity
+            // or hash here manually if not using entity
+            $passwordService = service('passwords');
+
+            if ( trim($newPassword)  === '' || empty($newPassword)) {
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Password can't be empty"
+                ], 400);
+            }
+            $newPasswordHash = $passwordService->hash($newPassword);
+            $user->setPasswordHash($newPasswordHash);
+        }
+
+        // Save updates to the database
+
+        // if (!empty($userData)) {
+            if (!$modelObject->save($user)) {
+                return $this->respond([
+                    "status" => false,
+                    "message" => "Update failed"
+                ], 400);
+            }
+            // $this->model->update($user->id, $userData);
+        // }
+    
+        return $this->respond([
+            'message' => 'User updated successfully.',
+            // 'user'    => $userData
+        ]);
+    }
+
 }

@@ -203,7 +203,7 @@ class ValidateProductMasterFileData extends BaseCommand
             'product_length','finish','segment','finish_wt','cheese_wt'
         ];
         foreach ($required as $f) {
-            if (trim($r[$f] ?? '') === '') $e[$f] = 'Required';
+            if (trim($r[$f] ?? '') === '') $e[$f === 'uom' ? 'unit_of_measure' : $f] = 'Required';
         }
 
         // FK checks

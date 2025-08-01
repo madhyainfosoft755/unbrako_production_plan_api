@@ -81,7 +81,7 @@ class PMImportController extends ResourceController
                 'finish'                   => trim($finish),
                 'segment'                  => trim($segment),
                 'finish_wt'                => is_numeric($finishWt) ? number_format($finishWt, 2, '.', '') : null,
-                'cheese_wt'                => is_numeric($cheeseWt) ? number_format($cheeseWt, 2, '.', '') : null,
+                'cheese_wt'                => is_numeric($cheeseWt) ? number_format($cheeseWt, 5, '.', '') : null,
                 'rm_spec'                  => trim($rmSpec),
                 'rod_dia1'                 => trim($rodDia),
                 'drawn_dia1'               => trim($drawnDia),
