@@ -5,8 +5,9 @@ namespace App\Filters;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+require_once APPPATH . 'Config/Constants.php';
 
-class FinishAccessFilter implements FilterInterface
+class MasterAccessFilter implements FilterInterface
 {
     /**
      * Do whatever processing this filter needs to do.
@@ -37,7 +38,7 @@ class FinishAccessFilter implements FilterInterface
             ])->setStatusCode(404);
         }
 
-        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_FINISH) {
+        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_MASTER) {
             return service('response')->setJSON([
                 'status' => false,
                 'message' => 'Unauthorized Access!',

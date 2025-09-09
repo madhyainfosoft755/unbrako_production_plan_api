@@ -34,16 +34,19 @@ $routes->get('/', 'Home::index');
 
 // service('auth')->routes($routes);
 
-$routes->post("/api/register", [AuthController::class, "register"]);
 $routes->post("/api/login", [AuthController::class, "login"]);
 // $routes->get('clear-cache', 'ApiController::clearCache'); // Clear cache
 
 $routes->post("/api/user/forgot-password", [AuthController::class, "forgotPassword"]);
 $routes->post("/api/user/reset-password", [AuthController::class, "resetPassword"]);
 $routes->post("/api/user/check-reset-token", [AuthController::class, "checkResetPasswordToken"]);
+$routes->get("/api/get-permissions/(:num)", [AuthController::class, "getPermissions"]);
 
 // Protected API Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield_auth"], function($routes){
+    $routes->post("/api/register", [AuthController::class, "register"],[
+        'filter' => 'role_permission:role=ADMIN'
+    ]);
 
     $routes->get("profile", [AuthController::class, "profile"]);
     $routes->put('user/update', 'AuthController::updateUserDetails');
@@ -63,7 +66,9 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
     $routes->get('get-sap-file-status', 'SapDataController::getSAPFileStatus');
     $routes->get('get-sap-failed-records', 'SapDataController::downloadSAPFailedRecords');
     $routes->get('validate-sap-file', 'SapDataController::triggerSAPFileValidation');
-    $routes->get('download-sap-template', 'SapDataController::downloadSAPTemplate');
+    $routes->get('download-sap-template', 'SapDataController::downloadSAPTemplate',[
+        'filter' => 'role_permission:role=ADMIN,permission=UploadSAPFile'
+    ]);
     $routes->get('load-sap-filters', 'SapDataController::loadFilterFields');
     $routes->post('get-weekly-planning', 'SapDataController::getWeeklyPlanning');
     $routes->post('update-buld-admin-fields', 'SapDataController::updateBulkAdminFields');
@@ -94,8 +99,10 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield
 
 
 // Admin Routes
-$routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth", "admin_access"]], function($routes) {
+$routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth"]], function($routes) {
+    $routes->post('sap-generate-main-file', 'AuthController::generateSummary');
     $routes->post('transfer-and-upload', 'SapDataController::index');
+    $routes->get('logs/date/(:segment)/(:segment)', 'AuthController::getLogByDate/$1/$2');
 
     $routes->post('user/update/(:num)', 'AuthController::updateUserDetailsByAdmin/$1');
     
@@ -112,7 +119,8 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->get('get-all-wo-db-and-finish', 'FinishController::getAllWODBandFinish');
 
     // Master Template Passwords
-    $routes->get('get-master-template-passwords', 'MasterTemplatePasswordController::getTemplatePasswords');
+    $routes->get('get-master-template-passwords/(:any)', 'MasterTemplatePasswordController::getTemplatePasswords/$1');
+    $routes->get('release-template/(:any)', 'MasterTemplatePasswordController::releaseTemplate/$1');
     
 
     // groups
@@ -192,12 +200,14 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
 
     $routes->get('shifts', 'ShiftController::getAllShift');
     $routes->post('import/work-order-master-file', 'WOMImportController::upload');
+
+
+    // reports
+    $routes->get('get-segment-wise-data', 'SapDataController::getSegmentWiseData');
+    $routes->get('get-seg3-wise-data', 'SapDataController::getSeg3WiseData');
+    $routes->get('get-plant-machine-booking', 'SapDataController::getPlantMachineBookingSummary');
     
 
-});
-
-// Forging Routes
-$routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shield_auth", "forging_access"]], function($routes) {
 });
 
 // Open APIs

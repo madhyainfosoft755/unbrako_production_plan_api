@@ -480,7 +480,7 @@ class WorkOrderMasterController extends ResourceController
         
         }
         
-        $filename = 'WorkOrderMasterTemplate.xlsx';
+        $filename = 'WorkOrderMasterTemplate';
 
         /* -----------------------------------------------------------------
         |  Write data rows if provided
@@ -537,32 +537,27 @@ class WorkOrderMasterController extends ResourceController
             //     /* repeat the validation logic you already have
             //     OR just leave them blank if validation isn’t needed */
             // }
-            $filename = 'FailedWorkOrderMasterRecords.xlsx';
+            $filename = 'FailedWorkOrderMasterRecords';
             $this->wom_temp_import_work_order_model
                     ->where('file_id', $fileId)
                     ->where('error_json !=', '0')
                     ->delete();
-        } else {
-            $templateName = 'WorkOrder Master Template';
-            // Check if record exists
-            $existing = $this->masterTemplatesPasswordModel->where('template_name', $templateName)->first();
+        } 
 
-            if ($existing) {
-                // Update password
-                $this->masterTemplatesPasswordModel->update($existing['id'], ['password' => $passwordForTemplate]);
-            } else {
-                // Insert new
-                $newId = $this->masterTemplatesPasswordModel->insert([
-                    'template_name' => $templateName,
-                    'password'      => $passwordForTemplate
-                ]);
-            }
-        }
+        $date = new DateTime();
+        $timestamp = $date->format('d_m_Y_H_i_s_v');
+        $newFilename = $filename . '_' . $timestamp . '.xlsx';
+        $this->masterTemplatesPasswordModel->insert([
+            'template_name' => $filename . '_' . $timestamp,
+            'password'      => $passwordForTemplate,
+            'user_id'       => auth()->user()->id
+        ]);
 
         // Output
         $writer = new Xlsx($spreadsheet);
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header("Content-Disposition: attachment; filename=\"$filename\"");
+        header("Content-Disposition: attachment; filename=\"$newFilename\"");
+        header("Access-Control-Expose-Headers: Content-Disposition");
         $writer->save("php://output");
     }
 

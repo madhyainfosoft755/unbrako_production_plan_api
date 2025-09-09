@@ -15,9 +15,11 @@ use CodeIgniter\Filters\SecureHeaders;
 use App\Filters\ShieldAuthFilter;
 
 use App\Filters\AdminAccessFilter;
-use App\Filters\FinishAccessFilter;
-use App\Filters\ForgingAccessFilter;
-use App\Filters\HeatingAccessFilter;
+use App\Filters\PlannerAccessFilter;
+use App\Filters\UserAccessFilter;
+use App\Filters\MasterAccessFilter;
+use App\Filters\ViewerAccessFilter;
+use App\Filters\RolePermissionFilter;
 
 class Filters extends BaseFilters
 {
@@ -43,9 +45,11 @@ class Filters extends BaseFilters
         'shield_auth' => ShieldAuthFilter::class,
 
         'admin_access' => AdminAccessFilter::class,
-        'finish_access' => FinishAccessFilter::class,
-        'forging_access' => ForgingAccessFilter::class,
-        'heating_access' => HeatingAccessFilter::class,
+        'planner_access' => PlannerAccessFilter::class,
+        'user_access' => UserAccessFilter::class,
+        'master_access' => MasterAccessFilter::class,
+        'viewer_access' => ViewerAccessFilter::class,
+        'role_permission' => RolePermissionFilter::class,
     ];
 
     /**

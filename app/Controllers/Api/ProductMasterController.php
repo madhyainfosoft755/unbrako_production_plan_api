@@ -8,7 +8,7 @@ use CodeIgniter\RESTful\ResourceController;
 use App\Models\MachineMasterModel;
 use CodeIgniter\API\ResponseTrait;
 use App\Models\ProductMasterModel;
-
+use DateTime;
 
 use App\Models\SegmentsModel;
 use App\Models\Seg2Model;
@@ -632,7 +632,7 @@ class ProductMasterController extends ResourceController
 
         // Protect the sheet with optional password
         $listSheet->getProtection()->setSheet(true);
-        $listSheet->getProtection()->setPassword('your-secret-password');
+        $listSheet->getProtection()->setPassword($passwordForTemplate);
         // print_r(
         //     array(
         //         '$machineArr' => $machineArr,
@@ -712,7 +712,7 @@ class ProductMasterController extends ResourceController
                 ->setFormula1("=Dropdowns!G2:G" . ($segments_row));
         }
 
-        $filename = 'ProductMasterTemplate.xlsx';
+        $filename = 'ProductMasterTemplate';
 
 
         if (!empty($data)) {
@@ -766,32 +766,27 @@ class ProductMasterController extends ResourceController
             //     /* repeat the validation logic you already have
             //     OR just leave them blank if validation isn’t needed */
             // }
-            $filename = 'FailedProductMasterRecords.xlsx';
+            $filename = 'FailedProductMasterRecords';
             $this->pm_temp_import_products_model
                     ->where('file_id', $fileId)
                     ->where('error_json !=', '0')
                     ->delete();
-        } else {
-            $templateName = 'Product Master Template';
-            // Check if record exists
-            $existing = $this->masterTemplatesPasswordModel->where('template_name', $templateName)->first();
-
-            if ($existing) {
-                // Update password
-                $this->masterTemplatesPasswordModel->update($existing['id'], ['password' => $passwordForTemplate]);
-            } else {
-                // Insert new
-                $newId = $this->masterTemplatesPasswordModel->insert([
-                    'template_name' => $templateName,
-                    'password'      => $passwordForTemplate
-                ]);
-            }
-        }
+        } 
+        
+        $date = new DateTime();
+        $timestamp = $date->format('d_m_Y_H_i_s_v');
+        $newFilename = $filename . '_' . $timestamp . '.xlsx';
+        $this->masterTemplatesPasswordModel->insert([
+                'template_name' => $filename . '_' . $timestamp,
+                'password'      => $passwordForTemplate,
+                'user_id'       => auth()->user()->id
+            ]);
 
 
         $writer = new Xlsx($spreadsheet);
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header("Content-Disposition: attachment; filename=\"$filename\"");
+        header("Content-Disposition: attachment; filename=\"$newFilename\"");
+        header("Access-Control-Expose-Headers: Content-Disposition");
         $writer->save("php://output");
     }
 

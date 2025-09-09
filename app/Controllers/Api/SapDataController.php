@@ -326,7 +326,7 @@ private function dmy_to_iso($value)
         
         }
         
-        $filename = 'SAPDataTemplate.xlsx';
+        $filename = 'SAPDataTemplate';
 
         /* -----------------------------------------------------------------
         |  Write data rows if provided
@@ -380,32 +380,27 @@ private function dmy_to_iso($value)
                 $rowNumber++;
             }
 
-            $filename = 'FailedSAPData.xlsx';
+            $filename = 'FailedSAPData';
             $sapTempImportDataModel
                     ->where('file_id', $fileId)
                     ->where('error_json !=', '0')
                     ->delete();
-        } else {
-            $templateName = 'SAP Data Template';
-            // Check if record exists
-            $existing = $this->masterTemplatesPasswordModel->where('template_name', $templateName)->first();
+        } 
 
-            if ($existing) {
-                // Update password
-                $this->masterTemplatesPasswordModel->update($existing['id'], ['password' => $passwordForTemplate]);
-            } else {
-                // Insert new
-                $newId = $this->masterTemplatesPasswordModel->insert([
-                    'template_name' => $templateName,
-                    'password'      => $passwordForTemplate
-                ]);
-            }
-        }
+        $date = new DateTime();
+        $timestamp = $date->format('d_m_Y_H_i_s_v');
+        $newFilename = $filename . '_' . $timestamp . '.xlsx';
+        $this->masterTemplatesPasswordModel->insert([
+            'template_name' => $filename . '_' . $timestamp,
+            'password'      => $passwordForTemplate,
+            'user_id'       => auth()->user()->id
+        ]);
 
         // Output
         $writer = new Xlsx($spreadsheet);
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header("Content-Disposition: attachment; filename=\"$filename\"");
+        header("Content-Disposition: attachment; filename=\"$newFilename\"");
+        header("Access-Control-Expose-Headers: Content-Disposition");
         $writer->save("php://output");
     }
 
@@ -705,8 +700,8 @@ private function insertSapData($insertData)
         $machineRevIds = $this->request->getVar('machineRevIds');
         
         $filters = [
-            'pm.machine_module' =>  $moduleIds,
-            'pm.machine' => $machineRevIds
+            'module_id' =>  $moduleIds,
+            'machine_id' => $machineRevIds
             // 'wom.customer' => 'Unbrako USA LLC', // Exact match
             // 'pm.finish' => '2',
             // 'sap_segment.name' => ['SPM', 'GPM'], // WHERE IN condition
@@ -715,19 +710,20 @@ private function insertSapData($insertData)
         //     $filters['modules.responsible'] = auth()->user()->id;
         // }
         $orderBy = [
-            'pm.prod_group' => 'ASC',
-            'pm.size' => 'ASC',
-            'pm.spec' => 'ASC',
-            'pm.drawn_dia1' => 'ASC',
-            'derived.materialNumber' => 'ASC',
-            'derived.materialDescription' => 'ASC',
-            'derived.work_order' => 'ASC',
-            'sap_segment.name' => 'ASC',
-            'wom.customer' => 'ASC',
+            'group_name' => 'ASC',
+            'size' => 'ASC',
+            'spec' => 'ASC',
+            'drawn_dia1' => 'ASC',
+            'materialNumber' => 'ASC',
+            'materialDescription' => 'ASC',
+            'work_order' => 'ASC',
+            'wom_segment_name' => 'ASC',
+            'customer' => 'ASC',
         ];
         $limit = 2000;
         $offset = 0;
-        $sapData = $this->sapDataModel->getSapData($filters, $orderBy, $limit, $offset);
+        $sapDataModelC = new SapCalculatedSummaryModel();
+        $sapData = $sapDataModelC->getSapData($filters, $orderBy, $limit, $offset);
 
         if (!empty($sapData)) {
             return $this->respond([
@@ -1433,6 +1429,164 @@ private function insertSapData($insertData)
             'inserted_count' => count($success)
         ]);
     }
+
+
+    // {
+    //     "columns": ["Person A", "Person B", "Person C"],
+    //     "rows": ["Segment 1", "Segment 2", "Segment 3"],
+    //     "data": {
+    //         "Segment 1": {
+    //         "Person A": 100,
+    //         "Person B": 50,
+    //         "Person C": 20
+    //         },
+    //         "Segment 2": {
+    //         "Person A": 80,
+    //         "Person B": 40,
+    //         "Person C": 0
+    //         },
+    //         "Segment 3": {
+    //         "Person A": 10,
+    //         "Person B": 90,
+    //         "Person C": 50
+    //         }
+    //     }
+    //     }
+
+    public function getSegmentWiseData()
+    {
+        $model = new SapCalculatedSummaryModel();
+
+        $results = $model->select('responsible_person_name, wom_segment_name, SUM(allocated_product_wt) as total_wt')
+                ->groupBy('responsible_person_name, wom_segment_name')
+                ->findAll();
+
+        $columns = [];
+        $rows = [];
+        $data = [];
+
+        foreach ($results as $row) {
+            $person = $row['responsible_person_name'];
+            $segment = $row['wom_segment_name'] ?? 'Unknown';
+            $total = floatval($row['total_wt']);
+
+            if (!in_array($person, $columns)) {
+                $columns[] = $person;
+            }
+
+            if (!in_array($segment, $rows)) {
+                $rows[] = $segment;
+            }
+
+            if (!isset($data[$segment])) {
+                $data[$segment] = [];
+            }
+
+            $data[$segment][$person] = $total;
+        }
+
+        // Optional: sort columns and rows
+        sort($columns);
+        sort($rows);
+
+        return $this->response->setJSON([
+            'columns' => $columns,
+            'rows' => $rows,
+            'data' => $data
+        ]);
+    }
+
+
+    public function getSeg3WiseData()
+    {
+        $model = new SapCalculatedSummaryModel();
+
+        $results = $model->select('responsible_person_name, seg3_name, SUM(allocated_product_wt) as total_wt')
+                ->groupBy('responsible_person_name, seg3_name')
+                ->findAll();
+
+        $columns = [];
+        $rows = [];
+        $data = [];
+
+        foreach ($results as $row) {
+            $person = $row['responsible_person_name'];
+            $segment = $row['seg3_name'] ?? 'Unknown';
+            $total = floatval($row['total_wt']);
+
+            if (!in_array($person, $columns)) {
+                $columns[] = $person;
+            }
+
+            if (!in_array($segment, $rows)) {
+                $rows[] = $segment;
+            }
+
+            if (!isset($data[$segment])) {
+                $data[$segment] = [];
+            }
+
+            $data[$segment][$person] = $total;
+        }
+
+        // Optional: sort columns and rows
+        sort($columns);
+        sort($rows);
+
+        return $this->response->setJSON([
+            'columns' => $columns,
+            'rows' => $rows,
+            'data' => $data
+        ]);
+    }
+
+
+
+
+    // {
+    //     "data": [
+    //         {
+    //         "module_name": "Module A",
+    //         "machine_name": "Machine 1",
+    //         "no_of_machines": 3,
+    //         "no_of_shift": 2,
+    //         "total_days_booking": 50,
+    //         "total_pending_wt": 120.5
+    //         },
+    //         {
+    //         "module_name": "Module A",
+    //         "machine_name": "Machine 2",
+    //         "no_of_machines": 2,
+    //         "no_of_shift": 1,
+    //         "total_days_booking": 30,
+    //         "total_pending_wt": 80
+    //         }
+    //     ]
+    //     }
+    public function getPlantMachineBookingSummary()
+    {
+        $model = new SapCalculatedSummaryModel();
+
+        $query = $model->query("
+            SELECT 
+                module_name,
+                machine_name,
+                MAX(no_of_machines) as no_of_machines,
+                MAX(no_of_shift) as no_of_shift,
+                SUM(no_of_days_booking) as total_days_booking,
+                SUM(pending_wt) as total_pending_wt
+            FROM sap_calculated_summary
+            GROUP BY module_name, machine_name
+        ");
+
+        $results = $query->getResultArray();
+
+        return $this->response->setJSON([
+            'data' => $results
+        ]);
+    }
+
+
 
 }
 

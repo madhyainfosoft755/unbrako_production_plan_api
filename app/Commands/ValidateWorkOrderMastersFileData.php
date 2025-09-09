@@ -58,6 +58,8 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
         '--limit'   => 'Limit number of rows to validate'
     ];
 
+    protected $validWorkOrderDb = [];
+
     /**
      * Actually execute a command.
      *
@@ -81,7 +83,7 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
         $segmentIds  = $this->prefetchSegments(); // name=>id map
 
         // Load all valid product material numbers
-        $validWorkOrderDb = array_column($mainModel->select('work_order_db')->findAll(), 'work_order_db');
+        $this->validWorkOrderDb = array_column($mainModel->select('work_order_db')->findAll(), 'work_order_db');
 
         $batchSize = 1000;
         while (true) {
@@ -102,7 +104,7 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
             $noErrorRows   = [];
 
             foreach ($chunk as $row) {
-                $errors = $this->validateRow($row, $segmentIds, $validWorkOrderDb);
+                $errors = $this->validateRow($row, $segmentIds, $this->validWorkOrderDb);
                 // print_r($row);
                 // echo 'error';
                 // print_r($errors);
@@ -145,16 +147,32 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
                 echo 'Inserting ' . count($validRows) . ' valid rows…';
 
                 $tempModel->updateBatch($noErrorRows, 'id');
-                $result = $mainModel->insertBatch($validRows);
-                if (!$result) {
-                    echo "insertBatch failed:" . PHP_EOL;
-                    print_r($mainModel->errors());     // Validation errors
-                    print_r($mainModel->db->error());  // Database errors
-                } else {
-                    echo "Inserted successfully." . PHP_EOL;
+                try {
+                    $result = $mainModel->insertBatch($validRows);
+                    if (!$result) {
+                        echo "insertBatch failed:" . PHP_EOL;
+                        print_r($mainModel->errors());     // Validation errors
+                        print_r($mainModel->db->error());  // Database errors
+                    } else {
+                        echo "Inserted successfully." . PHP_EOL;
 
-                    $tempModel->whereIn('id', $validRowIds)
-                        ->delete();
+                        $tempModel->whereIn('id', $validRowIds)
+                            ->delete();
+                    }
+                } catch (\Exception $e) {
+                    // 👇 Log error (to file or DB)
+                    log_message('error', 'Batch insert failed: ' . $e->getMessage());
+
+                    // 👇 Optionally, record this error in DB
+                    (new WOMFileImportLogModel())->update($fileId, [
+                        'status'         => 'failed',
+                        'processed_at'   => date('Y-m-d H:i:s'),
+                        // 'remarks'        => 'Batch insert failed: ' . $e->getMessage(),
+                    ]);
+
+                    CLI::error('Batch insert failed: ' . $e->getMessage());
+
+                    return; // Exit or continue to next batch based on your logic
                 }
               
             }
@@ -196,10 +214,15 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
         }
 
         if ($row['plant'] === '')   $e['plant'] = 'Required';
-        if ($row['work_order_db'] === '' || strlen($row['work_order_db']) > 5)
-            $e['work_order_db'] = 'Required, <=5 chars';
+        // why 9? because it can be A9780 or A9779-1 same way DB9779 or DB9779-1 or DB9779-11
+        // in DB9779-11 there are 9 chars. -99 is the max
+        if ($row['work_order_db'] === '' || strlen($row['work_order_db']) > 9)
+            $e['work_order_db'] = 'Required, <=9 chars';
         if ($row['customer'] === '') $e['customer'] = 'Required';
+        
+        // $segmentName = strtolower($row['segment_name']);
 
+        // $normalizedSegmentIds = array_change_key_case($segmentIds, CASE_LOWER);
         if (!isset($segmentIds[$row['segment_name']])) {
             $e['segment'] = 'Segment not found';
         }

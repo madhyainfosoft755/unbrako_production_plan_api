@@ -16,7 +16,7 @@ class AddCustomColumnsUsersTable extends Migration
             ],
             "role" => [
                 "type" => "ENUM",
-                'constraint' => ['ADMIN', 'FORGING', 'HEATING', 'FINISH', 'RM'],
+                'constraint' => ['ADMIN', 'USER', 'PLANNER', 'VIEWER', 'MASTER'],
                 "null" => false
             ],
             "emp_id" => [

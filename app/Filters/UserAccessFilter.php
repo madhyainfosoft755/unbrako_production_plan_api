@@ -6,7 +6,7 @@ use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
 
-class ForgingAccessFilter implements FilterInterface
+class UserAccessFilter implements FilterInterface
 {
     /**
      * Do whatever processing this filter needs to do.
@@ -37,7 +37,7 @@ class ForgingAccessFilter implements FilterInterface
             ])->setStatusCode(404);
         }
 
-        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_FORGING) {
+        if ($userDetails['role'] != ROLE_ADMIN || $userDetails['role'] != ROLE_USER) {
             return service('response')->setJSON([
                 'status' => false,
                 'message' => 'Unauthorized Access!',

@@ -6,9 +6,11 @@ use CodeIgniter\HTTP\ResponseInterface;
 use CodeIgniter\RESTful\ResourceController;
 use CodeIgniter\Shield\Entities\User;
 use CodeIgniter\Shield\Models\UserModel;
+use App\Models\AuthPermissionsUserModel;
 use App\Models\CustomUserModel;
 use App\Models\ForgotPasswordTokenModel;
 use Exception;
+use Config\Database;
 
 use CodeIgniter\Shield\Models\UserIdentityModel;
 // use CodeIgniter\Shield\Models\UserIdentityModel;
@@ -84,8 +86,12 @@ class AuthController extends ResourceController
                 "errors" => $this->validator->getErrors()
             ], 400);
         }
-
+        $db = Database::connect();
+        $db->transBegin(); // Begin transaction
         $modelObject = new CustomUserModel();
+
+        // extract one more object from post api data, permissions (array of permissions)
+        $userPermissions = $this->request->getVar("permissions");
 
         
         $entityObject = new User([
@@ -98,14 +104,75 @@ class AuthController extends ResourceController
             "role"=> $this->request->getVar("role"),
             "active"=> 1
         ]);
-
+        // print_r($entityObject);
+        // return $this->respond([
+        //     "status" => false,
+        //     "message" => "Failed to Create User",
+        // ]);
+        // die;
+        
         if($modelObject->save($entityObject)){
 
+            // get user permissions based on role and insert into user permissions table
+            // direct access of db role_default_permissions table
+            if($this->request->getVar("role") !== "ADMIN"){
+
+                // $db = Database::connect();
+                $builder = $db->table('role_default_permissions');
+                $defaultPermissions = $builder->select('role_default_permissions.*, pc.code as permission')
+                                        ->join('permission_codes pc', 'pc.id = role_default_permissions.permission_id', 'left')
+                                        ->where('role', $this->request->getVar("role"))->get()->getResultArray();
+    
+                // create new permissions array, where get extract permission from $userPermissions and take permission keys not exist in the default permissions array
+                if($userPermissions && is_array($userPermissions)){
+                    foreach($userPermissions as $permissionKey){
+                        $permissionKey = trim($permissionKey);
+                        if (!$permissionKey) continue;
+
+                        $exists = false;
+                        foreach($defaultPermissions as $defaultPermission){
+                            if($defaultPermission['permission'] == $permissionKey){
+                                $exists = true;
+                                break;
+                            }
+                        }
+                        if(!$exists){
+                            $defaultPermissions[] = ['permission' => $permissionKey];
+                        }
+                    }
+                }
+                
+                // add all default permissions to auth_permissions_users table
+                $authPermissionsUserModel = new AuthPermissionsUserModel();
+                // print_r($defaultPermissions);
+                // $db->transRollback();
+                // die;
+                foreach($defaultPermissions as $permission){
+                    $inserted = $authPermissionsUserModel->insert([
+                        'user_id' => $modelObject->getInsertID(),
+                        'permission' => $permission['permission'],
+                        'created_at' => date('Y-m-d H:i:s')
+                    ]);
+
+                    // $error = $authPermissionsUserModel->db->error();
+                    // print_r($error);
+    
+                    if ($inserted === false) {
+                        $db->transRollback(); // Roll back on any error
+                        return $this->respond([
+                            "status" => false,
+                            "message" => "Failed to assign permissions. User creation rolled back.",
+                        ], 500);
+                    }
+                }
+            }
+            $db->transCommit();
             return $this->respond([
                 "status" => true,
                 "message" => "User Registered Successfully",
             ]);
         } else{
+            $db->transRollback();
 
             return $this->respond([
                 "status" => false,
@@ -218,7 +285,8 @@ class AuthController extends ResourceController
                     "email" => $requestedEmail,
                     "emp_id" => auth()->user()->emp_id,
                     "role" => auth()->user()->role,
-                    "name" => auth()->user()->name
+                    "name" => auth()->user()->name,
+                    "permissions" => (new AuthPermissionsUserModel())->where('user_id', $userId)->findColumn('permission'),
                 ]);
             }
         } catch (Exception $ex){
@@ -262,6 +330,15 @@ class AuthController extends ResourceController
             "status" => true,
             "message" => "Profile information",
             "data" => $userData
+        ]);
+    }
+
+    public function getPermissions($userId){
+
+        return $this->respond([
+            "status" => true,
+            "message" => "Profile information",
+            "permissions" => (new AuthPermissionsUserModel())->where('user_id', $userId)->findColumn('permission'),
         ]);
     }
 
@@ -608,12 +685,29 @@ class AuthController extends ResourceController
     {
 
         $userModel = new UserModel();
+        $permissionModel = new AuthPermissionsUserModel();
         $users = $userModel->findAll();
+
+        foreach ($users as &$user) {
+            // Get permissions for this user
+            $permissions = $permissionModel
+                ->where('user_id', $user->id)  // use object property
+                ->findAll();
+
+            // Extract permission strings like ['a', 'b']
+            $permissionList = array_column($permissions, 'permission');
+
+            // Attach as dynamic property
+            $user->permissions = $permissionList; // works if entity allows dynamic properties
+        }
+
+        $builder = Database::connect()->table('permission_codes');
 
         return $this->respond([
             "status" => true,
             "message" => "Users retrieved successfully",
-            "data" => $users
+            "data" => $users,
+            "permissions" => $builder->select('id, code, description')->get()->getResult()
         ]);
     }
 
@@ -873,6 +967,7 @@ class AuthController extends ResourceController
 
         $modelObject = new CustomUserModel();
         $user = $modelObject->find($id);
+        $permissionModel = new AuthPermissionsUserModel();
 
         if (!$user) {
             return $this->respond([
@@ -880,10 +975,50 @@ class AuthController extends ResourceController
                 "message" => "User not found"
             ], 404);
         }
-        
+
         $loggedInUser = auth()->user();
 
         $data = $this->request->getJSON();
+
+        $userCurrentPermissions = $permissionModel->where('user_id', $id)  // use object property
+                ->findAll();
+        $currentPermissionCodes = array_map(
+            fn($perm) => is_object($perm) ? $perm->permission : $perm['permission'],
+            $userCurrentPermissions
+        );
+
+        $db = Database::connect();
+        $db->transStart();
+        $builder = $db->table('role_default_permissions');
+        $defaultPermissions = $builder->select('role_default_permissions.*, pc.code as permission')
+                                ->join('permission_codes pc', 'pc.id = role_default_permissions.permission_id', 'left')
+                                ->where('role', $data->role)->get()->getResultArray();
+
+        $defaultPermissionCodes = array_map(
+            fn($perm) => $perm['permission'],
+            $defaultPermissions
+        );
+        // get permissions key from incomming data
+        // $incommingPermissionCodesArr of type string[] or null
+        $incommingPermissionCodesArr = $data->permissions?? [];
+
+        // Incoming → ensure array (may be null)
+        $incomingPermissionCodes = $incommingPermissionCodesArr ?? [];
+
+        $unionOfIncomingAndDefault = array_unique(
+            array_merge($defaultPermissionCodes, $incomingPermissionCodes)
+        );
+
+        $permissionCodesToRemove = array_diff(
+            $currentPermissionCodes,
+            $unionOfIncomingAndDefault
+        );
+        $permissionCodesToAdd = array_diff(
+            $unionOfIncomingAndDefault,
+            $currentPermissionCodes
+        );
+        
+        
         
         // Validation rules
         $validation = service('validation');
@@ -954,11 +1089,148 @@ class AuthController extends ResourceController
             }
             // $this->model->update($user->id, $userData);
         // }
+
+        
+        // Remove permissions
+        if (!empty($permissionCodesToRemove)) {
+            $permissionModel->where('user_id', $id)
+                ->whereIn('permission', $permissionCodesToRemove)
+                ->delete();
+        }
+
+        // Add permissions
+        if (!empty($permissionCodesToAdd)) {
+            $insertData = [];
+            foreach ($permissionCodesToAdd as $permCode) {
+                $insertData[] = [
+                    'user_id'    => $id,
+                    'permission' => $permCode,
+                    'created_at' => date('Y-m-d H:i:s'),
+                ];
+            }
+            if (!empty($insertData)) {
+                $permissionModel->insertBatch($insertData);
+            }
+        }
     
+        $db->transComplete();
+        if ($db->transStatus() === false) {
+            return $this->respond([
+                "status" => false,
+                "message" => "User update failed while syncing permissions"
+            ], 500);
+        }
         return $this->respond([
             'message' => 'User updated successfully.',
             // 'user'    => $userData
         ]);
     }
 
+
+    public function getLogByDate($date = null, $type = 'normal')
+    {
+        if (!$date) {
+            return $this->failValidationError('Date is required in format YYYY-MM-DD');
+        }
+
+        // Validate date format
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $this->failValidationError('Invalid date format. Use YYYY-MM-DD.');
+        }
+        $logDir = WRITEPATH . 'logs/';
+
+        // Type 1: Normal CI4 log
+        if ($type === 'normal') {
+            $filePath = $logDir . 'log-' . $date . '.log';
+
+            if (!file_exists($filePath)) {
+                return $this->failNotFound("Log file not found for date: $date");
+            }
+
+            try {
+                $content = file_get_contents($filePath);
+                return $this->respond([
+                    'status' => true,
+                    'date' => $date,
+                    'log_type' => 'normal',
+                    'log_content' => $content
+                ]);
+            } catch (\Exception $e) {
+                return $this->failServerError('Failed to read log file.');
+            }
+        }
+        
+        // Type 2: CLI Job Log
+        if ($type === 'cli') {
+            // Convert date (YYYY-MM-DD) to Ymd for CLI logs
+            $datePart = str_replace('-', '', $date); // e.g., 20250905
+            $cliFiles = glob($logDir . "cli_job_{$datePart}_*.log");
+
+            if (!$cliFiles || count($cliFiles) === 0) {
+                return $this->failNotFound("No CLI job log file found for date: $date");
+            }
+
+            // Optionally return first match (or return multiple)
+            $firstMatch = $cliFiles[0];
+
+            try {
+                $content = file_get_contents($firstMatch);
+                return $this->respond([
+                    'status' => true,
+                    'date' => $date,
+                    'log_type' => 'cli',
+                    'filename' => basename($firstMatch),
+                    'log_content' => $content
+                ]);
+            } catch (\Exception $e) {
+                return $this->failServerError('Failed to read CLI log file.');
+            }
+        }
+
+        return $this->failValidationError('Invalid log type. Use "normal" or "cli".');
+    }
+
+
+
+    public function generateSummary()
+    {
+        try {
+            // Path to PHP binary & spark
+            $phpBinary = PHP_BINARY; // current php path
+            $spark = ROOTPATH . 'spark';
+
+            // Build command
+            $command = escapeshellcmd($phpBinary . ' ' . $spark . ' sap:generate-summary');
+
+            // $command = 'php ' . ROOTPATH . 'spark validate:sapfiledata ' . escapeshellarg($fileId);
+            $logfile = WRITEPATH . 'logs/cli_job_' . date('Ymd_His') . '.log';
+            // exec("$command > $logfile 2>&1 &");
+
+
+            // Run command
+            $output = [];
+            $returnVar = 0;
+            exec($command . ' > $logfile 2>&1', $output, $returnVar);
+
+            if ($returnVar !== 0) {
+                return $this->respond([
+                    'status'  => false,
+                    'message' => 'Command failed',
+                    'error'   => implode("\n", $output)
+                ], 500);
+            }
+
+            return $this->respond([
+                'status'  => true,
+                'message' => 'Main File generated successfully',
+                'output'  => implode("\n", $output),
+            ]);
+        } catch (\Throwable $e) {
+            return $this->respond([
+                'status'  => false,
+                'message' => 'Exception occurred',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

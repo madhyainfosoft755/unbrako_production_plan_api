@@ -94,7 +94,7 @@ define('EVENT_PRIORITY_NORMAL', 100);
 define('EVENT_PRIORITY_HIGH', 10);
 
 defined('ROLE_ADMIN')    || define('ROLE_ADMIN', 'ADMIN');
-defined('ROLE_FORGING')     || define('ROLE_FORGING', 'FORGING');
-defined('ROLE_HEATING')  || define('ROLE_HEATING', 'HEATING');
-defined('ROLE_FINISH')  || define('ROLE_FINISH', 'FINISH');
-defined('ROLE_RM')  || define('ROLE_RM', 'RM');
+defined('ROLE_USER')     || define('ROLE_USER', 'USER');
+defined('ROLE_PLANNER')  || define('ROLE_PLANNER', 'PLANNER');
+defined('ROLE_MASTER')  || define('ROLE_MASTER', 'MASTER');
+defined('ROLE_VIEWER')  || define('ROLE_VIEWER', 'VIEWER');

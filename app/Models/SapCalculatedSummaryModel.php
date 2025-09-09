@@ -62,4 +62,34 @@ class SapCalculatedSummaryModel extends Model
 
         return $builder->get()->getResultArray();
     }
+
+
+
+    public function getSapData($filters = [], $orderBy = [], $limit = null, $offset = null)
+    {
+        $builder = $this->builder();
+        $query = $builder->select('*');
+
+            // Apply filters dynamically
+            foreach ($filters as $key => $value) {
+                if (is_array($value)) {
+                    // Handle WHERE IN clauses
+                    $query->whereIn($key, $value);
+                } else {
+                    // Handle standard WHERE clauses
+                    $query->where($key, $value);
+                }
+            }
+
+            // Apply ordering dynamically
+            foreach ($orderBy as $column => $direction) {
+                $query->orderBy($column, $direction);
+            }
+
+            // Apply limit and offset if provided
+            if (!is_null($limit)) {
+                $query->limit($limit, $offset);
+            }
+            return $query->get()->getResult();
+    }
 }
