@@ -44,7 +44,7 @@ $routes->get("/api/get-permissions/(:num)", [AuthController::class, "getPermissi
 
 // Protected API Routes
 $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => "shield_auth"], function($routes){
-    $routes->post("/api/register", [AuthController::class, "register"],[
+    $routes->post("register", [AuthController::class, "register"],[
         'filter' => 'role_permission:role=ADMIN'
     ]);
 
