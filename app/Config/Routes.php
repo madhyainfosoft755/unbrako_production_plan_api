@@ -111,10 +111,12 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
 
     // segments
     $routes->post('segments', 'SegmentsController::addSegment');
+    $routes->post('segments/(:num)', 'SegmentsController::editSegment/$1');
     $routes->get('segments', 'SegmentsController::getAllSegments');
 
     // finish
     $routes->post('finish', 'FinishController::addFinish');
+    $routes->post('finish/(:num)', 'FinishController::editFinish/$1');
     $routes->get('finish', 'FinishController::getAllFinish');
     $routes->get('get-all-wo-db-and-finish', 'FinishController::getAllWODBandFinish');
 
@@ -125,14 +127,17 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
 
     // groups
     $routes->post('groups', 'GroupsController::addGroup');
+    $routes->post('groups/(:num)', 'GroupsController::editGroup/$1');
     $routes->get('groups', 'GroupsController::getAllGroups');
 
     // seg2
     $routes->post('seg2', 'Seg2Controller::addSeg2');
+    $routes->post('seg2/(:num)', 'Seg2Controller::editSeg2/$1');
     $routes->get('seg2', 'Seg2Controller::getAllSeg2');
 
     // seg3
     $routes->post('seg3', 'Seg3Controller::addSeg3');
+    $routes->post('seg3/(:num)', 'Seg3Controller::editSeg3/$1');
     $routes->get('seg3', 'Seg3Controller::getAllSeg3');
 
     // Unit of measure
@@ -153,8 +158,10 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     
     // Surface Treatment
     $routes->post('surface-treatment-process', 'SurfaceTreatmentProcessController::addSTProcess');
+    $routes->post('surface-treatment-process/(:num)', 'SurfaceTreatmentProcessController::editSTProcess/$1');
     // Module
     $routes->post('modules', 'ModulesController::addModule');
+    $routes->post('modules/(:num)', 'ModulesController::editModule/$1');
     
     $routes->post('complete-weekly-report-for-module', 'WeeklyPlanningController::completeWeeklyReportForMoudle');
     $routes->post('update-weekly-report-fields', 'WeeklyPlanningController::updateWeeklyReportFields');
@@ -179,7 +186,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('add-work-order-master', 'WorkOrderMasterController::addWorkOrderMaster');
     $routes->post('work-order-master', 'WorkOrderMasterController::getAllData');
     $routes->get('customer-names/(:any)', 'WorkOrderMasterController::getCustomerNames/$1');
-    $routes->patch('work-order-master/(:num)', 'WorkOrderMasterController::updateWorkOrderMaster/$1');
+    $routes->post('update-work-order-master/(:num)', 'WorkOrderMasterController::updateWorkOrderMaster/$1');
     $routes->get('download-wom-template', 'WorkOrderMasterController::downloadWOMTemplate');
     $routes->get('get-work-order-file-upload-status', 'WorkOrderMasterController::getWorkOrderFileUploadStatus');
     $routes->get('get-work-order-failed-records', 'WorkOrderMasterController::downloadWOMFailedRecords');
@@ -189,7 +196,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->post('add-product-master', 'ProductMasterController::create');
     $routes->post('product-master', 'ProductMasterController::getAllProductMaster');
     $routes->get('product-master/(:num)', 'ProductMasterController::getMachineMaster/$1');
-    $routes->put('product-master/(:num)', 'ProductMasterController::update/$1');
+    $routes->post('update-product-master/(:num)', 'ProductMasterController::updatePartNumberData/$1');
     $routes->get('download-pm-template', 'ProductMasterController::downloadPMTemplate');
     $routes->get('get-product-master-file-upload-status', 'ProductMasterController::getProductMasterFileUploadStatus');
     $routes->get('get-product-master-failed-records', 'ProductMasterController::downloadPMFailedRecords');

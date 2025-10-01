@@ -35,14 +35,16 @@ class GenerateSapSummary extends BaseCommand
      *
      * @var string
      */
-    protected $usage = 'sap:generate-summary';
+    protected $usage = 'sap:generate-summary {machineId}';
 
     /**
      * The Command's Arguments
      *
      * @var array
      */
-    protected $arguments = [];
+    protected $arguments = [
+        'machineId' => 'The ID of the machine (optional)'
+    ];
 
     /**
      * The Command's Options
@@ -61,6 +63,36 @@ class GenerateSapSummary extends BaseCommand
         helper('date');
         $db = db_connect();
         $builder = $db->table('sap_data');
+
+        $machineId = isset($params[0]) ? (int)$params[0] : null; // get CLI option: php spark sap:generate-summary 5  (where 5 is machineId)
+            CLI::write("🔄 Updating sap_calculated_summary for machine_id: {$machineId}", 'blue');
+        if ($machineId) {
+            CLI::write("🔄 Updating sap_calculated_summary for machine_id: {$machineId}", 'blue');
+
+            $sapRows = $db->table('sap_calculated_summary')
+                ->select('sap_id')
+                ->where('machine_id', $machineId)
+                ->get()
+                ->getResultArray();
+
+            if (empty($sapRows)) {
+                CLI::write("No records found for machine_id={$machineId}.", 'yellow');
+                return;
+            }
+
+            foreach ($sapRows as $row) {
+                $sapId = $row['sap_id'];
+                try {
+                    $this->processSapData($sapId, $db, true); // update mode
+                    CLI::write("✅ Updated SAP ID: {$sapId}", 'green');
+                } catch (\Throwable $e) {
+                    CLI::error("❌ Error updating SAP ID: {$sapId} — " . $e->getMessage());
+                }
+            }
+
+            CLI::write("✅ All records updated for machine_id={$machineId}", 'green');
+            return;
+        }
 
         $missingRows = $builder
             ->select('id')
@@ -115,7 +147,7 @@ class GenerateSapSummary extends BaseCommand
     //         // Add all other calculated fields
     //     ]);
     // }
-    protected function processSapData(int $sapId, BaseConnection $db)
+    protected function processSapData(int $sapId, BaseConnection $db, bool $update = false)
     {
         // Fetch the SAP record
         $sap = $db->table('sap_data')->where('id', $sapId)->get()->getRowArray();
@@ -214,8 +246,7 @@ class GenerateSapSummary extends BaseCommand
         $no_days_booking = $per_day_booking ? $final_pending_qty / $per_day_booking : 0;
         $weekly_planning_days = $per_day_booking ? $allocated_product_qty/$per_day_booking : 0;
 
-        // Insert record
-        $db->table('sap_calculated_summary')->insert([
+        $data = [
             'sap_id'                        => $sapId,
             'sap_orderNumber'               => $sap['orderNumber'],
             'rm_correction'                 => $sap['rm_correction'],
@@ -307,6 +338,16 @@ class GenerateSapSummary extends BaseCommand
             'work_order_master_id'         => $work_order_master_id,
             'product_master_id'            => $product_master_id,
             'no_of_day_weekly_planning'    => $weekly_planning_days,
-        ]);
+        ];
+
+        if ($update) {
+            // update existing record
+            $db->table('sap_calculated_summary')
+            ->where('sap_id', $sapId)
+            ->update($data);
+        } else {
+            // insert new record
+            $db->table('sap_calculated_summary')->insert($data);
+        }
     }
 }

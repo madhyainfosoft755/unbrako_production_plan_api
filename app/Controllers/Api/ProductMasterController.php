@@ -202,28 +202,108 @@ class ProductMasterController extends ResourceController
      *
      * @return ResponseInterface
      */
-    public function update($id = null)
+    public function updatePartNumberData($id)
     {
-        if (!$id || !$this->model->find($id)) {
-            return $this->failNotFound('Product not found.');
+        // Check if record exists
+        $existing = $this->productMasterModel->find($id);
+        if (!$existing) {
+            return $this->respond([
+                'status'  => false,
+                'message' => 'Product not found'
+            ], 404);
         }
 
-        $data = $this->request->getPost();
+        // Retrieve JSON data
+        $data = $this->request->getJSON(true);
 
-        if (!$this->validate($this->model->getValidationRules())) {
+        // Check machine module master
+        $machine_module_master = $this->machineModel
+            ->select('*')
+            ->where([
+                'module'      => $data['machine_module'] ?? null,
+                'machine_rev' => $data['machine'] ?? null
+            ])
+            ->get()
+            ->getResultArray();
+
+        if (count($machine_module_master) > 0) {
+            $data['machine_module_master_id'] = $machine_module_master[0]['id'];
+        } else {
+            return $this->respond([
+                'status'  => false,
+                'message' => 'Machine Master details not found'
+            ], 400);
+        }
+
+        $data['updated_by'] = auth()->user()->id; 
+        $data['updated_at'] = date('Y-m-d H:i:s');
+
+        // Validate input
+        if (!$this->validate($this->productMasterModel->getValidationRules())) {
             return $this->failValidationErrors($this->validator->getErrors());
         }
-
-        if ($this->model->update($id, $data)) {
-            return $this->respond([
-                'status'  => 'success',
-                'message' => 'Product updated successfully.',
-                'data'    => $data,
-            ]);
+        try {
+            
+            if ($this->productMasterModel->update($id, $data)) {
+                return $this->respond([
+                    'status'  => 'success',
+                    'message' => 'Product updated successfully.',
+                    'data'    => $data,
+                ], 200);
+            }
+        }
+        catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            if (strpos($e->getMessage(), 'foreign key constraint fails') !== false) {
+                if (strpos($e->getMessage(), 'machine-pm') !== false) {
+                    return $this->respond(['status' => false, 'message' => 'Machine does not exist'], 400);
+                }
+                if (strpos($e->getMessage(), 'segment-pm') !== false) {
+                    return $this->respond(['status' => false, 'message' => 'Segment does not exist'], 400);
+                }
+                if (strpos($e->getMessage(), 'finish-pm') !== false) {
+                    return $this->respond(['status' => false, 'message' => 'Finish does not exist'], 400);
+                }
+                if (strpos($e->getMessage(), 'group-pm') !== false) {
+                    return $this->respond(['status' => false, 'message' => 'Group does not exist'], 400);
+                }
+                if (strpos($e->getMessage(), 'seg2-pm') !== false) {
+                    return $this->respond(['status' => false, 'message' => 'Seg2 does not exist'], 400);
+                }
+                if (strpos($e->getMessage(), 'seg3-pm') !== false) {
+                    return $this->respond(['status' => false, 'message' => 'Seg3 does not exist'], 400);
+                }
+                return $this->respond([
+                    'status'  => false,
+                    'message' => 'Foreign key constraint violation'
+                ], 400);
+            }
         }
 
         return $this->fail('Failed to update product.');
     }
+
+    // public function update($id = null)
+    // {
+    //     if (!$id || !$this->model->find($id)) {
+    //         return $this->failNotFound('Product not found.');
+    //     }
+
+    //     $data = $this->request->getPost();
+
+    //     if (!$this->validate($this->model->getValidationRules())) {
+    //         return $this->failValidationErrors($this->validator->getErrors());
+    //     }
+
+    //     if ($this->model->update($id, $data)) {
+    //         return $this->respond([
+    //             'status'  => 'success',
+    //             'message' => 'Product updated successfully.',
+    //             'data'    => $data,
+    //         ]);
+    //     }
+
+    //     return $this->fail('Failed to update product.');
+    // }
 
     /**
      * Delete the designated resource object from the model.

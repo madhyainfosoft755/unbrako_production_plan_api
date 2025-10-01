@@ -174,10 +174,36 @@ class MachineController extends ResourceController
         if (!$this->validateData($data, $rules)) {
             return $this->failValidationErrors($this->validator->getErrors());
         }
+        $this->machineModel->setValidationRules($rules);
 
         // Validate only provided fields (partial update)
         if (!$this->machineModel->update($id, $data)) {
             return $this->failValidationErrors($this->machineModel->errors());
+        }
+
+        try {
+            // Path to PHP binary & spark
+            $phpBinary = PHP_BINARY; // current php path
+            $spark = ROOTPATH . 'spark';
+
+            // Build command
+            $command = escapeshellcmd($phpBinary . ' ' . $spark . ' sap:generate-summary '. intval($id));
+            // print_r($spark . ' sap:gs
+            // $command = 'php ' . ROOTPATH . 'spark validate:sapfiledata ' . escapeshellarg($fileId);
+            $logfile = WRITEPATH . 'logs/cli_job_' . date('Ymd_His') . '.log';
+            exec("$command > $logfile 2>&1 &");
+
+
+            // Run command
+            // $output = [];
+            // $returnVar = 0;
+            // exec($command . ' > $logfile 2>&1', $output, $returnVar);
+        } catch (\Throwable $e) {
+            return $this->respond([
+                'status'  => false,
+                'message' => 'Exception occurred',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
 
         return $this->respond([

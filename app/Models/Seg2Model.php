@@ -14,7 +14,9 @@ class Seg2Model extends Model
     protected $protectFields    = true;
     protected $allowedFields    = [
         "name",
-        "created_by"
+        "created_by",
+        "updated_by",
+        "updated_at"
     ];
 
     protected bool $allowEmptyInserts = false;
