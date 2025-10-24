@@ -151,8 +151,8 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
                     $result = $mainModel->insertBatch($validRows);
                     if (!$result) {
                         echo "insertBatch failed:" . PHP_EOL;
-                        print_r($mainModel->errors());     // Validation errors
-                        print_r($mainModel->db->error());  // Database errors
+                        // print_r($mainModel->errors());     // Validation errors
+                        // print_r($mainModel->db->error());  // Database errors
                     } else {
                         echo "Inserted successfully." . PHP_EOL;
 

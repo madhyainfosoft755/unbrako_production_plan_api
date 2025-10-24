@@ -329,7 +329,7 @@ class AuthController extends ResourceController
         return $this->respond([
             "status" => true,
             "message" => "Profile information",
-            "data" => $userData
+            "data" => $userData.trim()
         ]);
     }
 
@@ -426,9 +426,9 @@ class AuthController extends ResourceController
         $currentPassword = $this->request->getVar("current_password");
         $newPassword = $this->request->getVar("new_password");
         $user = auth()->user();
-        echo $currentPassword;
-        echo '<br>';
-        echo $newPassword;
+        // echo $currentPassword;
+        // echo '<br>';
+        // echo $newPassword;
 
         // print_r(auth()->user());
         // print_r(auth("tokens")->user());
@@ -464,14 +464,14 @@ class AuthController extends ResourceController
             $isValid = $passwordService->verify($currentPassword, $storedHashedPassword);
     
             if ($isValid) {
-                echo "Password is correct!";
+                // echo "Password is correct!";
                 $newPasswordHash = $passwordService->hash($newPassword);
-                echo $newPasswordHash;
+                // echo $newPasswordHash;
                 // $identities = new UserIdentityModel();
                 // $identities->forceMultiplePasswordReset([1,2,3,4]);
                 $shieldModelObject = new User();
-                echo auth()->user()->getEmail();
-                echo auth()->user()->getPasswordHash();  // Correct get password hast method.
+                // echo auth()->user()->getEmail();
+                // echo auth()->user()->getPasswordHash();  // Correct get password hast method.
                 auth()->user()->setPasswordHash($newPasswordHash);
 
                 // $userInfo = $shieldModelObject->getEmail();
@@ -484,10 +484,10 @@ class AuthController extends ResourceController
                     return $this->failServerError('Failed to update user.');
                 }
             } else {
-                echo "Incorrect password!";
+                // echo "Incorrect password!";
             }
         } else {
-            echo "User identity not found.";
+            // echo "User identity not found.";
         }
         // $accessToken = auth("tokens")->getBearerToken();
         // echo $accessToken;

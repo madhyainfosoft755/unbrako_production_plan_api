@@ -153,8 +153,8 @@ class ValidateProductMasterFileData extends BaseCommand
                 $result = $final->insertBatch($valid);
                 if (!$result) {
                     echo "insertBatch failed:" . PHP_EOL;
-                    print_r($final->errors());     // Validation errors
-                    print_r($final->db->error());  // Database errors
+                    // print_r($final->errors());     // Validation errors
+                    // print_r($final->db->error());  // Database errors
                 } else {
                     echo "Inserted successfully." . PHP_EOL;
 

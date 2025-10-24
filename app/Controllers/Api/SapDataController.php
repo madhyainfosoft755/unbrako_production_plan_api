@@ -37,7 +37,6 @@ class SapDataController extends ResourceController
 {
     protected $sapDataModel;
     protected $userModel;
-    protected $WeeklyPeriodsModel;
     protected $masterTemplatesPasswordModel;
 
     public function __construct()
@@ -45,9 +44,7 @@ class SapDataController extends ResourceController
         // Load models in the constructor
         $this->sapDataModel = new SapDataModel();
         $this->userModel = new CustomUserModel();
-        $this->weeklyPeriodsModel = new WeeklyPeriodsModel();
         $this->masterTemplatesPasswordModel = new MasterTemplatesPasswordModel();
-        $this->current_date = date('Y-m-d');
     }
      
 
@@ -55,6 +52,13 @@ class SapDataController extends ResourceController
 public function index()
 {
     $excelUploadFile = $this->request->getFile("upload_excel");
+    $selectedFileTypeOption = $this->request->getVar('selectedFileTypeOption');
+    if($selectedFileTypeOption !== 'new' && $selectedFileTypeOption !== 'incremental'){
+        return $this->respond([
+            'status'  => false,
+            'message' => 'File type should be "new" or "incremental".'
+        ], 400); 
+    }
     if (!$excelUploadFile->isValid()) {
         return $this->failValidationErrors($excelUploadFile->getErrorString());
     }
@@ -78,7 +82,9 @@ public function index()
             'status'        => 'pending',
             'created_at'    => date('Y-m-d H:i:s'),
         ], true);
-        $this->clearSapData(); 
+        if($selectedFileTypeOption === 'new'){
+            $this->clearSapData(); 
+        }
         $this->dumpToTemp($path . $newExcelUploadName, $fileId);
 
          // 4. Trigger CLI job asynchronously (Linux)
@@ -547,8 +553,10 @@ private function transferSapData()
 private function clearSapData()
 {
     $sapDataModel = new \App\Models\SapDataModel();
+    $sapCalculatedSummaryModel = new \App\Models\SapCalculatedSummaryModel();
     //  $sapDataModel->truncate();
      $sapDataModel->where('id is not null')->delete();
+     $sapCalculatedSummaryModel->where('id is not null')->delete();
 }
 
 /**
@@ -962,9 +970,9 @@ private function insertSapData($insertData)
     }
 
     private function _getWeek(){
-        $query = $this->weeklyPeriodsModel->select('*')
-        ->where('start_date <=', $this->current_date)
-        ->where('end_date >=', $this->current_date)
+        $query = (new WeeklyPeriodsModel())->select('*')
+        ->where('start_date <=', date('Y-m-d'))
+        ->where('end_date >=', date('Y-m-d'))
         ->get();
 
         if ($query->getNumRows() > 0) {
@@ -1157,10 +1165,17 @@ private function insertSapData($insertData)
                     $data = $weeklyPlanningDataModel->where([
                         'weekly_planning_id'      => $existing['id']
                     ])->orderBy('machine_name', 'ASC')->findAll();
-                    return $this->respond([
-                        'status' => 'exists',
-                        'data'   => $data
-                    ]);
+                    if(count($data) > 0){
+                        return $this->respond([
+                            'status' => 'exists',
+                            'data'   => $data
+                        ]);
+                    } else {
+                        return $this->respond([
+                            'status'  => 'failed',
+                            'message' => 'No related data found for this weekly planning.'
+                        ], 400);
+                    }
                 } else {
                     $existingUnSavedData = $weeklyPlanningDataModel->where('weekly_planning_id',$weeklyPlanId)->findAll();
                     $weeklyPlanningDataModel->where('weekly_planning_id',$weeklyPlanId)->delete();
@@ -1217,10 +1232,17 @@ private function insertSapData($insertData)
             }
         }
 
-        return $this->respond([
-            'status' => 'success',
-            'data' => $insertWeeklyPlanningData
-        ]);
+        if(count($insertWeeklyPlanningData) > 0){
+            return $this->respond([
+                'status' => 'success',
+                'data' => $insertWeeklyPlanningData
+            ]);
+        } else {
+            return $this->respond([
+                'status'  => 'failed',
+                'message' => 'No related data found for this weekly planning.'
+            ], 400);
+        }
     }
 
     private function _getExtraDetails($weeklyPlanningDataModel, $existingUnSavedData, $machineId, $weeklyPlanId){
@@ -1273,6 +1295,7 @@ private function insertSapData($insertData)
         }
 
         $sapIds = array_filter($data['sap_ids'], fn($id) => is_numeric($id));
+        // print_r($sapIds);
         $sapDataModel = new SapDataModel();
 
         // Validate foreign key (if provided)
@@ -1289,7 +1312,7 @@ private function insertSapData($insertData)
         }
 
         // Validate string fields
-        $stringFields = ['monthly_plan', 'monthly_fix_plan', 'forge_commite_week', 'priority_list', 'special_remarks'];
+        $stringFields = ['monthly_plan', 'monthly_fix_plan', 'to_forge_limit_inc', 'forge_commite_week', 'priority_list', 'special_remarks'];
         $updateFields = [];
         foreach ($stringFields as $field) {
             if (array_key_exists($field, $data)) {
@@ -1312,10 +1335,13 @@ private function insertSapData($insertData)
         if (empty($updateFields)) {
             return $this->fail('No valid update fields provided.');
         }
+        // print_r($updateFields);
 
         // Build array for batch update
         $batchUpdateData = [];
         foreach ($sapIds as $id) {
+            echo $id;
+            // print_r($sapDataModel->find($id));
             if ($sapDataModel->find($id)) {
                 $row = array_merge(['id' => $id], $updateFields);
                 $batchUpdateData[] = $row;
@@ -1325,8 +1351,11 @@ private function insertSapData($insertData)
         // print_r($batchUpdateData);
         // die();
 
-        if (!empty($batchUpdateData)) {
-            $sapDataModel->updateBatch($batchUpdateData, 'id');
+        // if (!empty($batchUpdateData)) {
+        //     $sapDataModel->updateBatch($batchUpdateData, 'id');
+        // }
+        foreach ($batchUpdateData as $row) {
+            $sapDataModel->update($row['id'], $row);
         }
 
         return $this->respond([

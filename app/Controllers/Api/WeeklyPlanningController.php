@@ -34,11 +34,23 @@ class WeeklyPlanningController extends ResourceController
             ])->first();
     
             if ($existing) {
-                $this->weeklyPlanningModel->update($existing['id'], ['is_permanent' => 1, 'user' => user_id(), 'timestamp'=> date('Y-m-d H:i:s')]);
-                return $this->respond([
-                    'status' => 'success',
-                    'message' => 'Weekly Planning Added'
-                ], 200);
+                // Check if related data exists in WeeklyPlanningDataModel
+                $relatedCount = $this->weeklyPlanningDataModel
+                    ->where('weekly_planning_id', $existing['id'])
+                    ->countAllResults();
+                
+                if ($relatedCount > 0) {
+                    $this->weeklyPlanningModel->update($existing['id'], ['is_permanent' => 1, 'user' => user_id(), 'timestamp'=> date('Y-m-d H:i:s')]);
+                    return $this->respond([
+                        'status' => 'success',
+                        'message' => 'Weekly Planning Added'
+                    ], 200);
+                } else {
+                    return $this->respond([
+                        'status'  => 'failed',
+                        'message' => 'Cannot complete: No related data found for this weekly planning.'
+                    ], 400);
+                }
             } else {
                 return $this->respond([
                     'status' => 'failed',

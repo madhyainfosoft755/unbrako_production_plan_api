@@ -6,6 +6,7 @@ use App\Models\DailyModuleShiftOutputModel;
 use CodeIgniter\RESTful\ResourceController;
 use App\Models\DailyModuleShiftQtyUpdateModel;
 use App\Models\SapDataModel;
+use Config\Database;
 
 class DailyModuleShiftOutputController extends ResourceController
 {
@@ -83,73 +84,135 @@ class DailyModuleShiftOutputController extends ResourceController
         $qtyUpdateModel = new DailyModuleShiftQtyUpdateModel();
         $sapDataModel = new SapDataModel();
 
-        // Step 1: Check for existing record with is_permanent = 0
-        $existing = $this->daily_module_shift_output_model->where('is_permanent', 0)
+        try{
+            // Step 1: Check for existing record with is_permanent = 0
+            $existing = $this->daily_module_shift_output_model->where('is_permanent', 0)
                                      ->where('user_id', $userId)
                                      ->first();
 
-        if ($existing) {
-            $moduleShiftId = $existing['id'];
-            $this->daily_module_shift_output_model->update($moduleShiftId, [
-                'user_id'    => $userId,
-                'supervisor' => $supervisor,
-                'shift'      => $shift,
-                'date'       => $date,
-                'timestamp'  => $timestamp
-            ]);
-        } else {
-            // Step 2: Insert new record
-            $moduleShiftId = $this->daily_module_shift_output_model->insert([
-                'user_id'    => $userId,
-                'supervisor' => $supervisor,
-                'shift'      => $shift,
-                'date'       => $date,
-                'timestamp'  => $timestamp
-            ]);
-        }
-
-        // Step 3: Get existing qty updates for this module_shift_id
-        $existingQtyRecords = $qtyUpdateModel->where('module_shift_id', $moduleShiftId)->findAll();
-        $existingBySapId = [];
-        foreach ($existingQtyRecords as $record) {
-            $existingBySapId[$record['sap_id']] = $record;
-        }
-
-        // Step 4: Insert or Update per sap_id
-        foreach ($machineParts as $part) {
-            if($part['input_qty'] != 0 || $part['input_qty'] != null){
-                $sapId = $part['id'];
-                $existingSAPId = $sapDataModel->find($sapId);
-                if (!$existingSAPId) {
-                    continue; // sap_id not found
-                }
-                if((int)$part['input_qty'] > (int)$existingSAPId['to_forge_qty'] - (int)$existingSAPId['forged_so_far']){
-                    continue;
-                }
-                $dataToSave = [
-                    'user_id'         => $userId,
-                    'module_shift_id' => $moduleShiftId,
-                    'module_id'       => $part['module_id'],
-                    'sap_id'          => $sapId,
-                    'machine_id'      => $part['machine_id'],
-                    'material_number' => $part['materialNumber'],
-                    'pending_qty'     => $part['pending_qty'],
-                    'production_qty'  => $part['input_qty'],
-                    'timestamp'       => $timestamp
-                ];
-    
-                if (isset($existingBySapId[$sapId])) {
-                    $qtyUpdateModel->update($existingBySapId[$sapId]['id'], $dataToSave);
+            try{
+                if ($existing) {
+                    $moduleShiftId = $existing['id'];
+                    $this->daily_module_shift_output_model->update($moduleShiftId, [
+                        'user_id'    => $userId,
+                        'supervisor' => $supervisor,
+                        'shift'      => $shift,
+                        'date'       => $date,
+                        'timestamp'  => $timestamp
+                    ]);
                 } else {
-                    $qtyUpdateModel->insert($dataToSave);
+                    // Step 2: Insert new record
+                    $moduleShiftId = $this->daily_module_shift_output_model->insert([
+                        'user_id'    => $userId,
+                        'supervisor' => $supervisor,
+                        'shift'      => $shift,
+                        'date'       => $date,
+                        'timestamp'  => $timestamp
+                    ]);
+                }
+            } catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+                // Check if the error is due to foreign key constraint violation
+                if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    return $this->respond([
+                        'status' => false,
+                        // 'message' => 'Foreign key constraint violation. Machine does not exist.'
+                        // 'message' => 'Machine does not exist.',
+                        // 'message' => 'Database error occurred: ' . $e->getMessage()
+                        'message' => 'Data already saved for shift '. $shift . ' on date '. date('d-m-Y')
+                    ], 400); // HTTP 400 Bad Request
+                } else {
+                    return $this->respond([
+                        'status' => false,
+                        // 'message' => 'Foreign key constraint violation. Machine does not exist.'
+                        // 'message' => 'Machine does not exist.',
+                        // 'message' => 'Database error occurred: ' . $e->getMessage()
+                        'message' => 'Unknown database error occur'
+                    ], 400); // HTTP 400 Bad Request
                 }
             }
-        }
 
-        return $this->respondCreated([
-            'status' => 'success',
-            'module_shift_id' => $moduleShiftId
-        ]);
+            $db = \Config\Database::connect();
+            $db->transStart();
+
+            // Step 3: Get existing qty updates for this module_shift_id
+            $existingQtyRecords = $qtyUpdateModel->where('module_shift_id', $moduleShiftId)->findAll();
+            $existingBySapId = [];
+            foreach ($existingQtyRecords as $record) {
+                $existingBySapId[$record['sap_id']] = $record;
+            }
+
+            // Step 4: Insert or Update per sap_id
+            foreach ($machineParts as $part) {
+                if($part['input_qty'] != 0 || $part['input_qty'] != null){
+                    $sapId = $part['id'];
+                    $existingSAPId = $sapDataModel->find($sapId);
+                    if (!$existingSAPId) {
+                        continue; // sap_id not found
+                    }
+                    if((int)$part['input_qty'] > (int)$existingSAPId['to_forge_qty'] - (int)$existingSAPId['forged_so_far']){
+                        if(empty(trim($part['remarks']))){
+                            // break the loop. if input_qty exeed and remarks not added.
+                            return $this->respond([
+                                'status' => false,
+                                'message' => 'Input qty exceeds limit for material ' . $part['materialNumber'] . '. Remarks required.'
+                            ], 400);
+                        }
+                    }
+                    $dataToSave = [
+                        'user_id'         => $userId,
+                        'module_shift_id' => $moduleShiftId,
+                        'module_id'       => $part['module_id'],
+                        'sap_id'          => $sapId,
+                        'machine_id'      => $part['machine_id'],
+                        'material_number' => $part['materialNumber'],
+                        'pending_qty'     => $part['pending_qty'],
+                        'production_qty'  => $part['input_qty'],
+                        'timestamp'       => $timestamp,
+                        'remarks'         => $part['remarks']
+                    ];
+        
+                    if (isset($existingBySapId[$sapId])) {
+                        $qtyUpdateModel->update($existingBySapId[$sapId]['id'], $dataToSave);
+                    } else {
+                        $qtyUpdateModel->insert($dataToSave);
+                    }
+                }
+            }
+
+            $db->transComplete();
+
+            // if ($db->transStatus() === false) {
+            //     return $this->respond([
+            //         'status' => false,
+            //         'message' => 'Transaction failed. No data saved.'
+            //     ], 400); 
+            // }
+
+            return $this->respondCreated([
+                'status' => 'success',
+                'module_shift_id' => $moduleShiftId
+            ]);
+        } catch (\CodeIgniter\Database\Exceptions\DatabaseException $e) {
+            $db->transRollback();
+            // Check if the error is due to foreign key constraint violation
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                return $this->respond([
+                    'status' => false,
+                    // 'message' => 'Foreign key constraint violation. Machine does not exist.'
+                    // 'message' => 'Machine does not exist.',
+                    // 'message' => 'Database error occurred: ' . $e->getMessage()
+                    'message' => 'Data already saved for shift '. $shift . ' on date '. date('d-m-Y')
+                ], 400); // HTTP 400 Bad Request
+            } else {
+                return $this->respond([
+                    'status' => false,
+                    // 'message' => 'Foreign key constraint violation. Machine does not exist.'
+                    // 'message' => 'Machine does not exist.',
+                    // 'message' => 'Database error occurred: ' . $e->getMessage()
+                    'message' => 'Unknown database error occur'
+                ], 400); // HTTP 400 Bad Request
+            }
+        }
     }
 
     public function saveSubmitData(){

@@ -225,7 +225,7 @@ class GenerateSapSummary extends BaseCommand
         $mult = floatval($db->query("SELECT getModuleMultiplier(?) AS m", [$machine_module])->getRow()->m ?? 1.2);
 
         // Calculations
-        $to_forge_qty = $sap['to_forge_qty'];
+        $to_forge_qty = $sap['to_forge_qty'] + intval($sap['to_forge_limit_inc'] ?? 0);
         $to_forge_wt = ($to_forge_qty * $finish_wt)/1000;
         $to_forge_rm_wt = $to_forge_wt * $mult;
         $total_alloc2 = min($total_alloc, $to_forge_rm_wt);

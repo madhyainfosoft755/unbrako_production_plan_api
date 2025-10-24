@@ -18,7 +18,8 @@ class DailyModuleShiftQtyUpdateModel extends Model
         'material_number',
         'pending_qty',
         'production_qty',
-        'timestamp'
+        'timestamp',
+        'remarks'
     ];
 
     protected $useTimestamps = false;
