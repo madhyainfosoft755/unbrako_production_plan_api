@@ -216,15 +216,40 @@ class DailyModuleShiftOutputController extends ResourceController
     }
 
     public function saveSubmitData(){
-        $existing = $this->daily_module_shift_output_model->where('is_permanent', 0)
+        $db = \Config\Database::connect();
+        $dailyModuleShiftOutputModel = $this->daily_module_shift_output_model;
+        $sapDataModel = new \App\Models\SapDataModel();
+        $shiftQtyModel = new \App\Models\DailyModuleShiftQtyUpdateModel();
+
+        $db->transStart();
+        $existing = $dailyModuleShiftOutputModel->where('is_permanent', 0)
                                      ->where('user_id', user_id())
                                      ->first();
 
         if ($existing) {
             $moduleShiftId = $existing['id'];
-            $this->daily_module_shift_output_model->update($moduleShiftId, [
+            $dailyModuleShiftOutputModel->update($moduleShiftId, [
                 'is_permanent'    => 1
             ]);
+            
+            // ========== Apply Trigger Logic Here ==========
+            // Get all qty updates for this shift
+            $qtyUpdates = $shiftQtyModel
+            ->where('module_shift_id', $moduleShiftId)
+            ->findAll();
+            
+            foreach ($qtyUpdates as $q) {
+                // Update sap_data table: forged_so_far += production_qty
+                $sapDataModel->set('forged_so_far', 'forged_so_far + ' . (int)$q['production_qty'], false) // false = don't quote it
+                        ->update($q['sap_id']);
+            }
+            // ===============================================
+        }
+
+        $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return $this->fail('Transaction failed', 500);
         }
         return $this->respondCreated([
             'status' => 'success'

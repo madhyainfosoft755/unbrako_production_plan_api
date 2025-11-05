@@ -105,7 +105,7 @@ class MachineController extends ResourceController
                 pm.machine as machine_id, 
                 pm.machine_module,
                 machines.name as machine_name,
-                m.id as module_id,'
+                m.id as module_id, m.name as module_name'
             )
             ->join('product_master pm', 'pm.material_number_for_process = sap_data.materialNumber', 'left')
             ->join('machines', 'machines.id = pm.machine', 'left')
@@ -123,6 +123,29 @@ class MachineController extends ResourceController
         if (!empty($module_id)) {
             $builder->where('m.id', $module_id);
         }
+
+        
+        $machine_name        = isset($postData['machine_name']) ? trim($postData['machine_name']) : '';
+        $materialNumber      = isset($postData['materialNumber']) ? trim($postData['materialNumber']) : '';
+        $materialDescription = isset($postData['materialDescription']) ? trim($postData['materialDescription']) : '';
+        $to_forge_qty        = isset($postData['to_forge_qty']) ? trim($postData['to_forge_qty']) : '';
+        
+        if (!empty($machine_name)) {
+            $builder->like('machines.name', $machine_name, 'after'); // starts with
+        }
+
+        if (!empty($materialNumber)) {
+            $builder->like('sap_data.materialNumber', $materialNumber, 'after'); // starts with
+        }
+
+        if (!empty($materialDescription)) {
+            $builder->like('pm.material_description', $materialDescription, 'after'); // starts with
+        }
+
+        if ($to_forge_qty !== '' && is_numeric($to_forge_qty)) {
+            $builder->where('sap_data.to_forge_qty', $to_forge_qty); // exact match
+        }
+        
         $data = $builder->findAll();
 
         // iterate every data object and add kv for production_qty
@@ -130,13 +153,14 @@ class MachineController extends ResourceController
             $item['production_qty'] = 0; // Initialize production_qty to 0
             // Get the production quantity for this materialNumber
             $qtyUpdate = $this->daily_module_shift_qty_update_model
-                ->select('SUM(production_qty) as total_qty')
+                ->select('SUM(production_qty) as total_qty, remarks')
                 ->join('daily_module_shift_output dmso', 'dmso.id = daily_module_shift_qty_update.module_shift_id', 'left')
                 ->where('sap_id', $item['id'])
                 ->where('dmso.is_permanent', '0')
                 ->first();
             if ($qtyUpdate && isset($qtyUpdate['total_qty'])) {
                 $item['production_qty'] = (int)$qtyUpdate['total_qty'];
+                $item['remarks'] = $qtyUpdate['remarks'];
             }
         }
 

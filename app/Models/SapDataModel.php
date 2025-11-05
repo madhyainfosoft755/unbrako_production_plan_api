@@ -82,6 +82,7 @@ class SapDataModel extends Model
      */
     protected function storeOldData(array $data)
     {
+        // log_message('error', 'Batch insert failed1: '. json_encode($data) );
         if (!empty($data['id'])) {
             $this->oldData = $this->find($data['id'][0]);
         }
@@ -233,7 +234,9 @@ class SapDataModel extends Model
     {
         $sapCalculatedModel = new SapCalculatedSummaryModel();
         $newData = $this->find($data['id'][0]);
-
+        
+        log_message('error', 'incomming data: '. json_encode($newData) );
+        log_message('error', 'old data: '. json_encode($this->oldData) );
         if (!$newData) {
             return $data;
         }
