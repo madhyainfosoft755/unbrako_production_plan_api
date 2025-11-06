@@ -15,7 +15,9 @@ class DailyModuleShiftOutputModel extends Model
         'shift',
         'date',
         'timestamp',
-        'is_permanent'
+        'is_permanent',
+        'updated_at',
+        'updated_by'
     ];
 
     protected $useTimestamps = false; // Since you're using a manual timestamp

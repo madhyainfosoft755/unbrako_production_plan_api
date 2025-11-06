@@ -329,7 +329,7 @@ class AuthController extends ResourceController
         return $this->respond([
             "status" => true,
             "message" => "Profile information",
-            "data" => $userData.trim()
+            "data" => $userData
         ]);
     }
 

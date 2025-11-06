@@ -168,7 +168,7 @@ class DailyModuleShiftOutputController extends ResourceController
                         'pending_qty'     => $part['pending_qty'],
                         'production_qty'  => $part['input_qty'],
                         'timestamp'       => $timestamp,
-                        'remarks'         => $part['remarks']
+                        'remarks'         => $part['remarks'] ?? ''
                     ];
         
                     if (isset($existingBySapId[$sapId])) {
@@ -229,7 +229,9 @@ class DailyModuleShiftOutputController extends ResourceController
         if ($existing) {
             $moduleShiftId = $existing['id'];
             $dailyModuleShiftOutputModel->update($moduleShiftId, [
-                'is_permanent'    => 1
+                'is_permanent'    => 1,
+                'updated_at'      => date('Y-m-d H:i:s'),
+                'updated_by'      => user_id()
             ]);
             
             // ========== Apply Trigger Logic Here ==========
@@ -240,7 +242,8 @@ class DailyModuleShiftOutputController extends ResourceController
             
             foreach ($qtyUpdates as $q) {
                 // Update sap_data table: forged_so_far += production_qty
-                $sapDataModel->set('forged_so_far', 'forged_so_far + ' . (int)$q['production_qty'], false) // false = don't quote it
+                $sapDataModel->set('forged_so_far', 'forged_so_far + ' . (int)$q['production_qty'], false)
+                            ->set('extra_production_remarks', $q['remarks']) // false = don't quote it
                         ->update($q['sap_id']);
             }
             // ===============================================

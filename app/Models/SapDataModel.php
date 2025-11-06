@@ -90,7 +90,7 @@ class SapDataModel extends Model
     }
   
     protected $allowedFields = ['orderNumber', 'plant', 'materialNumber', 'materialDescription', 'orderQuantity_GMEIN', 'deliveredQuantity_GMEIN', 'confirmedQuantity_GMEIN', 'unitOfMeasure_GMEIN', 'to_forge_qty', 'to_forge_limit_inc', 'forged_so_far', 'batch', 'startDate', 'salesOrder', 'systemStatus', 'scheduledFinishDate', 'insertedTimestamp', 'insertedBy',
-    'forge_commite_week', 'this_month_forge_qty', 'special_remarks', 'is_rm_ready', 'surface_treatment_process', 'priority_list', 'rm_delivery_date', 'monthly_plan', 'monthly_fix_plan', 'rm_allocation_priority', 'rm_correction', 'plan_allocation', 'updated_at', 'updated_by'   ];  // Define the allowed fields
+    'forge_commite_week', 'this_month_forge_qty', 'special_remarks', 'extra_production_remarks', 'is_rm_ready', 'surface_treatment_process', 'priority_list', 'rm_delivery_date', 'monthly_plan', 'monthly_fix_plan', 'rm_allocation_priority', 'rm_correction', 'plan_allocation', 'updated_at', 'updated_by'   ];  // Define the allowed fields
 
     public function getSapData($filters = [], $orderBy = [], $limit = null, $offset = null)
     {
@@ -263,11 +263,14 @@ class SapDataModel extends Model
             'unitOfMeasure_GMEIN'           => $newData['unitOfMeasure_GMEIN'],
             'batch'                         => $newData['batch'],
             'main_special_remarks'          => $newData['special_remarks'],
+            'extra_production_remarks'      => $newData['extra_production_remarks'],
             'rm_delivery_date'              => $newData['rm_delivery_date'],
             'rm_allocation_priority'        => $newData['rm_allocation_priority'],
             'advance_final_rm_wt'           => $newData['advance_final_rm_wt'],
             'priority_list'                 => $newData['priority_list'],
         ])->update();
+
+        log_message('error', 'new updated data: '. json_encode($sapCalculatedModel->where('sap_id', $sapId)->findAll()) );
         
         // If forged_so_far changed, do recalculation
         if ($this->oldData && (($this->oldData['forged_so_far'] != $newData['forged_so_far']) || 

@@ -72,6 +72,7 @@ class SapCalculatedSummaryModel extends Model
     'condition_of_rm',
     'pm_special_remarks',
     'main_special_remarks',
+    'extra_production_remarks',
     'pm_bom',
     'rm_component',
     'rm_allocation_priority',
