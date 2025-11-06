@@ -1617,6 +1617,81 @@ private function insertSapData($insertData)
 
 
 
+    public function getDailyOutputReport(){
+        // take the date from request object
+        $incDate = $this->request->getVar('date');
+        $date = date('Y-m-d');
+
+        // validate date format Y-m-d
+        $d = \DateTime::createFromFormat('Y-m-d', $incDate);
+        if (!($d && $d->format('Y-m-d') === $incDate)){
+            return $this->failValidationErrors('Invalid date format. Use Y-m-d.');
+        } else {
+            $date = $incDate;
+        }
+
+        // 2 Initialize the already imported SapDataModel
+        $sapCalculatedSummaryModel = new SapCalculatedSummaryModel();
+
+        // 3 Build the query using the model’s builder
+        $builder = $sapCalculatedSummaryModel->builder('sap_calculated_summary AS s');
+        $builder->select("
+            s.id AS sap_id,
+            s.materialNumber,
+            s.materialDescription,
+            s.module_responsible_person_name,
+            s.module_name,
+            s.seg2_name,
+            SUM(q.production_qty) AS total_production_qty,
+            ROUND(SUM(q.production_qty) * getModuleMultiplier(q.module_id), 3) AS total_production_wt,
+
+             SUM(CASE WHEN dmso.date = '$date' THEN q.production_qty ELSE 0 END) AS today_qty,
+            ROUND(SUM(CASE WHEN dmso.date = '$date' THEN q.production_qty ELSE 0 END) * getModuleMultiplier(q.module_id), 3) AS today_wt
+        ")
+        ->join('daily_module_shift_qty_update AS q', 's.sap_id = q.sap_id', 'left')
+        ->join('daily_module_shift_output AS dmso', 'q.module_shift_id = dmso.id', 'left')
+        ->where('Month(dmso.date)', date('m', strtotime($date)))
+        ->where('dmso.is_permanent', 1)
+        ->groupBy([
+            's.module_responsible_person_name',
+            's.module_name',
+            's.seg2_name'
+        ])
+        ->orderBy('s.module_responsible_person_name, s.module_name, s.seg2_name');
+
+        $result = $builder->get()->getResultArray();
+        
+        // 4 Group the data hierarchically
+        $grouped = [];
+        foreach ($result as $row) {
+            $responsible = $row['module_responsible_person_name'] ?? 'Unknown';
+            $module = $row['module_name'] ?? 'Unknown';
+            $seg2 = $row['seg2_name'] ?? 'Unknown';
+
+            if (!isset($grouped[$responsible])) {
+                $grouped[$responsible] = [];
+            }
+            if (!isset($grouped[$responsible][$module])) {
+                $grouped[$responsible][$module] = [];
+            }
+
+            $grouped[$responsible][$module][] = [
+                'seg2_name' => $seg2,
+                'total_production_qty' => (float) $row['total_production_qty'],
+                'materialNumber' => $row['materialNumber'],
+                'materialDescription' => $row['materialDescription'],
+            ];
+        }
+
+        // 5 Return JSON response
+        return $this->response->setJSON([
+            'status' => 'success',
+            'date' => $date,
+            'data' => $result
+        ], 200);
+    }
+
+
 }
 
 ?>

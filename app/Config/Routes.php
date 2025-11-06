@@ -212,6 +212,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     // reports
     $routes->get('get-segment-wise-data', 'SapDataController::getSegmentWiseData');
     $routes->get('get-seg3-wise-data', 'SapDataController::getSeg3WiseData');
+    $routes->post('get-daily-output', 'SapDataController::getDailyOutputReport');
     $routes->get('get-plant-machine-booking', 'SapDataController::getPlantMachineBookingSummary');
     
 
