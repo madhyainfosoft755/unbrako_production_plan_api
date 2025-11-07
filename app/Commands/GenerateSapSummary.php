@@ -237,13 +237,14 @@ class GenerateSapSummary extends BaseCommand
         $allocated_product_wt = $allocated_balance_rm_wt/$mult;
         $allocated_product_qty = $finish_wt ? ($allocated_product_wt*1000)/$finish_wt : 0;
         $per_day_booking = ($speed * 450) * ($per_eff/100) * $shifts * $plan_mc;
-        $final_pending_qty = $to_forge_qty - $forged;
+        $final_pending_qty = intval($to_forge_qty - $forged);
         $pending_qty = max(0, $final_pending_qty);
         $pending_wt = ($pending_qty * $finish_wt)/1000;
         $pending_rm_wt = $pending_wt * $mult;
         $pending_from_outside_1 = $to_forge_rm_wt - $total_alloc;
         $pending_from_outside = max(0, $pending_from_outside_1);
-        $no_days_booking = $per_day_booking ? $final_pending_qty / $per_day_booking : 0;
+        $no_days_booking = $per_day_booking ? $final_pending_qty <=0 ? 0 : $final_pending_qty / $per_day_booking : 0;
+        $no_days_booking = number_format((float)$no_days_booking, 1, '.', '');
         $weekly_planning_days = $per_day_booking ? $allocated_product_qty/$per_day_booking : 0;
 
         $data = [

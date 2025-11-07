@@ -1487,6 +1487,10 @@ private function insertSapData($insertData)
         $model = new SapCalculatedSummaryModel();
 
         $results = $model->select('responsible_person_name, wom_segment_name, SUM(allocated_product_wt) as total_wt')
+                ->where('responsible_person_name !=', '')
+                ->where('responsible_person_name IS NOT NULL')
+                ->where('wom_segment_name !=', '')
+                ->where('wom_segment_name IS NOT NULL')
                 ->groupBy('responsible_person_name, wom_segment_name')
                 ->findAll();
 
@@ -1531,6 +1535,10 @@ private function insertSapData($insertData)
         $model = new SapCalculatedSummaryModel();
 
         $results = $model->select('responsible_person_name, seg3_name, SUM(allocated_product_wt) as total_wt')
+                ->where('responsible_person_name !=', '')
+                ->where('responsible_person_name IS NOT NULL')
+                ->where('seg3_name !=', '')
+                ->where('seg3_name IS NOT NULL')
                 ->groupBy('responsible_person_name, seg3_name')
                 ->findAll();
 

@@ -325,6 +325,7 @@ class ProductMasterController extends ResourceController
 
         // Get page from query param (e.g., ?page=2), default to 1
         $page = (int) $this->request->getGet('page');
+        $export = isset($postData['export']) ?? false;
         $page = max($page, 1); // Ensure at least 1
         $perPage = 50;
         $offset = ($page - 1) * $perPage;
@@ -458,7 +459,11 @@ class ProductMasterController extends ResourceController
         $total = $countBuilder->countAllResults(false);
 
         // Get paginated result
-        $data = $builder->findAll($perPage, $offset);
+        if($export == 'true'){
+            $data = $builder->findAll();
+        } else{
+            $data = $builder->findAll($perPage, $offset);
+        }
 
         return $this->respond([
             'status'  => true,
