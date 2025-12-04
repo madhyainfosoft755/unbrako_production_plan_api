@@ -35,6 +35,7 @@ class SapRmUpdateController extends ResourceController
         return $this->respond([
             'status' => true,
             'data' => $records,
+            'sap_data'=>(new SapDataModel())->find($sapId)
         ]);
     }
 
@@ -54,88 +55,141 @@ class SapRmUpdateController extends ResourceController
 
         $insertedBy = user_id();
 
-        if(count($sapIds) == 1 && isset($data['rm_date']) && !empty($data['rm_date'])){
-            if(!isset($data['rm_date']) && !is_numeric($data['rm_date'])){
-                return $this->fail('sap_ids is required and must be a non-empty array.');
-            }
-            $sapId = $sapIds[0];
-            if (!$sapId || !$insertedBy) {
-                return $this->respond([
-                    'status' => false,
-                    'message' => 'sap_id and inserted_by are required.'
-                ], ResponseInterface::HTTP_BAD_REQUEST);
-            }
-    
-            $today = date('Y-m-d');
-            $dayOfWeek = date('w'); // 6 = Saturday
-    
-            if ($dayOfWeek != 6) {
-                return $this->respond([
-                    'status' => false,
-                    'message' => 'You can only insert data on Saturday.'
-                ], ResponseInterface::HTTP_BAD_REQUEST);
-            }
-    
-            $model = new SapRmUpdateModel();
-    
-            // Check if already exists
-            $existing = $model->where('sap_id', $sapId)
-                              ->where('date', $today)
-                              ->first();
-    
-            if ($existing) {
-                return $this->respond([
-                    'status' => false,
-                    'message' => 'Data already filled for today.'
-                ], ResponseInterface::HTTP_CONFLICT);
-            }
-    
-            // Insert record
-            $model->insert([
-                'sap_id' => $sapId,
-                'date' => $today,
-                'allocation'=>(int)$data['rm_date'],
-                'inserted_by' => $insertedBy,
-            ]);
-    
-        }
+        $db = \Config\Database::connect();
+        $db->transStart();
 
+        $totalAllocation = 0.0;
 
-        if (isset($data['rm_correction']) && is_numeric($data['rm_correction'])) {
-            $updateFields['rm_correction'] = (int)$data['rm_correction'];
-        }
-        if (isset($data['rm_delivery_date'])) {
-            $date = new \DateTime($data['rm_delivery_date']);
-            $date->setTimezone(new \DateTimeZone('Asia/Kolkata')); // Optional
-            $mysqlDate = $date->format('Y-m-d');
-            $updateFields['rm_delivery_date'] = $mysqlDate;
-        }
-        if (isset($data['rm_delivery']) && $data['rm_delivery'] === true) {
-            $updateFields['is_rm_ready'] = 1;
-            // Remove 'rm_delivery_date' if it's set
-            if (isset($updateFields['rm_delivery_date'])) {
-                unset($updateFields['rm_delivery_date']);
-            }
+        try {
 
-        }
-        if (empty($updateFields)) {
-            return $this->fail('No valid update fields provided.');
-        }
-        $batchUpdateData = [];
-        foreach ($sapIds as $id) {
-            if ($sapDataModel->find($id)) {
-                $row = array_merge(['id' => $id], $updateFields);
-                $batchUpdateData[] = $row;
-            }
-        }
-        if (!empty($batchUpdateData)) {
-            $sapDataModel->updateBatch($batchUpdateData, 'id');
-        }
+            if(count($sapIds) == 1 && isset($data['rm_date']) && !empty($data['rm_date'])){
+                if(!isset($data['rm_date']) && !is_numeric($data['rm_date'])){
+                    return $this->fail('sap_ids is required and must be a non-empty array.');
+                }
+                $sapId = $sapIds[0];
+                if (!$sapId || !$insertedBy) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'sap_id and inserted_by are required.'
+                    ], ResponseInterface::HTTP_BAD_REQUEST);
+                }
         
-        return $this->respondCreated([
-            'status' => true,
-            'message' => 'Data inserted successfully.'
-        ]);
+                $today = date('Y-m-d');
+                $dayOfWeek = date('w'); // 6 = Saturday
+        
+                // if ($dayOfWeek != 6) {
+                //     return $this->respond([
+                //         'status' => false,
+                //         'message' => 'You can only insert data on Saturday.'
+                //     ], ResponseInterface::HTTP_BAD_REQUEST);
+                // }
+        
+                $model = new SapRmUpdateModel();
+        
+                // Check if already exists
+                $existing = $model->where('sap_id', $sapId)
+                                ->where('date', $today)
+                                ->first();
+        
+                if ($existing) {
+                    return $this->respond([
+                        'status' => false,
+                        'message' => 'Data already filled for today.'
+                    ], ResponseInterface::HTTP_CONFLICT);
+                }
+        
+                // Insert record
+                $model->insert([
+                    'sap_id' => $sapId,
+                    'date' => $today,
+                    'allocation'=>(int)$data['rm_date'],
+                    'inserted_by' => $insertedBy,
+                ]);
+
+                $startOfMonth = date('Y-m-01');
+                $endOfMonth = date('Y-m-t');
+
+                $records = $model->where('sap_id', $sapId)
+                         ->where('date >=', $startOfMonth)
+                         ->where('date <=', $endOfMonth)
+                         ->findAll();
+
+                // Calculate sum of allocation
+                foreach ($records as $row) {
+                    $totalAllocation += (float)$row['allocation'];
+                }
+        
+            }
+
+            $updateFields['month_rm_total'] = number_format($totalAllocation, 2, '.', '');
+            if (isset($data['rm_correction']) && is_numeric($data['rm_correction'])) {
+                $updateFields['rm_correction'] = (int)$data['rm_correction'];
+            }
+            if (isset($data['rm_delivery_date'])) {
+                $date = new \DateTime($data['rm_delivery_date']);
+                $date->setTimezone(new \DateTimeZone('Asia/Kolkata')); // Optional
+                $mysqlDate = $date->format('Y-m-d');
+                $updateFields['rm_delivery_date'] = $mysqlDate;
+            }
+            if (isset($data['rm_delivery']) && $data['rm_delivery'] === true) {
+                $updateFields['is_rm_ready'] = 1;
+                // Remove 'rm_delivery_date' if it's set
+                if (isset($updateFields['rm_delivery_date'])) {
+                    unset($updateFields['rm_delivery_date']);
+                }
+
+            } else {
+                $updateFields['is_rm_ready'] = 0;
+            }
+            if (empty($updateFields)) {
+                return $this->fail('No valid update fields provided.');
+            }
+            $batchUpdateData = [];
+            foreach ($sapIds as $id) {
+                if ($sapDataModel->find($id)) {
+                    if((int)($sapDataModel->find($id)['plan_allocation']) <= 0 && isset($data['plant_allocation']) && is_numeric($data['plant_allocation'])){
+                        $updateFields['plan_allocation'] = (int)$data['plant_allocation'];
+                    }
+                    // $row = array_merge(['id' => $id], $updateFields);
+                    // $batchUpdateData[] = $row;
+
+                    // Perform update for this ID (only once)
+                    $sapDataModel->update($id, $updateFields);
+
+                    break; // IMPORTANT: stop after first iteration no matter what
+                }
+            }
+            // if (!empty($batchUpdateData)) {
+            //     $sapDataModel->updateBatch($batchUpdateData, 'id');
+            // }
+
+            /* ---------------------------------------------------
+            Commit Transaction
+            --------------------------------------------------- */
+            $db->transComplete();
+
+            if ($db->transStatus() === false) {
+                return $this->respond([
+                    'status'  => false,
+                    'message' => 'Transaction failed. All changes rolled back.'
+                ], ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+            }
+
+            return $this->respondCreated([
+                'status'  => true,
+                'message' => 'Data inserted successfully.'
+            ]);
+
+        } catch (\Throwable $e) {
+
+            // Rollback on Exception
+            $db->transRollback();
+
+            return $this->respond([
+                'status'  => false,
+                'message' => 'Error: '.$e->getMessage(),
+            ], ResponseInterface::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
     }
 }

@@ -274,7 +274,10 @@ class SapDataModel extends Model
         
         // If forged_so_far changed, do recalculation
         if ($this->oldData && (($this->oldData['forged_so_far'] != $newData['forged_so_far']) || 
-        ($this->oldData['to_forge_limit_inc'] != $newData['to_forge_limit_inc']))) {
+        ($this->oldData['to_forge_limit_inc'] != $newData['to_forge_limit_inc'])) || 
+        ($this->oldData['rm_correction'] != $newData['rm_correction']) || 
+        ($this->oldData['plan_allocation'] != $newData['plan_allocation']) || 
+        ($this->oldData['month_rm_total'] != $newData['month_rm_total'])) {
             $this->recalculateForgedSummary($sapId, $newData);
         }
 
@@ -316,7 +319,7 @@ class SapDataModel extends Model
 
 
         $forged = intval($data['forged_so_far'] ?? 0);
-        $total_alloc = floatval($data['rm_correction'] ?? 0) + floatval($data['plan_allocation'] ?? 0);
+        $total_alloc = floatval($data['rm_correction'] ?? 0) + floatval($data['plan_allocation'] ?? 0) + floatval($data['month_rm_total'] ?? 0);
 
         // Calculations
         $to_forge_qty = intval($data['to_forge_qty'] ?? 0) + intval($data['to_forge_limit_inc'] ?? 0);

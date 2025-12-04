@@ -7,15 +7,18 @@ use CodeIgniter\RESTful\ResourceController;
 
 use App\Models\ModulesModel;
 use App\Models\WeeklyPlanningModel;
+use App\Models\CustomUserModel;
 
 class ModulesController extends ResourceController
 {
     protected $modulesModel;
+    protected $userModel;
 
     public function __construct()
     {
         // Load models in the constructor
         $this->modulesModel = new ModulesModel();
+        $this->userModel = new CustomUserModel();
     }
 
     public function addModule(){
@@ -111,6 +114,17 @@ class ModulesController extends ResourceController
     }
 
     public function getAllModules(){
+        $user = $this->userModel->find(auth()->user()->id);
+        if($user->role === 'USER'){
+            $modules = $this->modulesModel->select('modules.id, modules.name, users.name as responsible, users.id as responsible_id, users.role as role, modules.created_at')
+                ->join('users', 'users.id = modules.responsible')
+                ->where('modules.responsible', $user->id)
+                ->orderBy('name', 'ASC')->findAll();
+            return $this->respond([
+                'data' => $modules,
+                'savedModules'=>[]
+            ], 200); // HTTP 200 OK
+        }
         $modules = $this->modulesModel->select('modules.id, modules.name, users.name as responsible, users.id as responsible_id, users.role as role, modules.created_at')
             ->join('users', 'users.id = modules.responsible')
             ->orderBy('name', 'ASC')->findAll();
