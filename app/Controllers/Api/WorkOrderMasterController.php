@@ -644,12 +644,24 @@ class WorkOrderMasterController extends ResourceController
             'user_id'       => auth()->user()->id
         ]);
 
-        // Output
-        $writer = new Xlsx($spreadsheet);
+        // Clear previous buffers
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        // Disable compression (important on Windows/XAMPP)
+        ini_set('zlib.output_compression', '0');
+
         header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         header("Content-Disposition: attachment; filename=\"$newFilename\"");
+        header("Cache-Control: no-cache, must-revalidate");
+        header("Expires: 0");
+        header("Pragma: public");
         header("Access-Control-Expose-Headers: Content-Disposition");
+
+        $writer = new Xlsx($spreadsheet);
         $writer->save("php://output");
+        exit();
     }
 
 
