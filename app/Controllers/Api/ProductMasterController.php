@@ -10,7 +10,6 @@ use CodeIgniter\API\ResponseTrait;
 use App\Models\ProductMasterModel;
 use DateTime;
 
-use App\Models\SegmentsModel;
 use App\Models\Seg2Model;
 use App\Models\Seg3Model;
 use App\Models\FinishModel;
@@ -33,7 +32,6 @@ class ProductMasterController extends ResourceController
 
     protected $machineModel;
     protected $productMasterModel;
-    protected $segmentsModel;
     protected $seg2Model;
     protected $seg3Model;
     protected $finishModel;
@@ -49,7 +47,6 @@ class ProductMasterController extends ResourceController
     {
         $this->machineModel = new MachineMasterModel();
         $this->productMasterModel = new ProductMasterModel();
-        $this->segmentsModel = new SegmentsModel();
         $this->seg2Model = new Seg2Model();
         $this->seg3Model = new Seg3Model();
         $this->finishModel = new FinishModel();
@@ -138,12 +135,6 @@ class ProductMasterController extends ResourceController
                     return $this->respond([
                         'status' => false,
                         'message' => 'Machine does not exist'
-                    ], 400); // HTTP 400 Bad Request
-                }
-                if (strpos($e->getMessage(), 'segment-pm') !== false) {
-                    return $this->respond([
-                        'status' => false,
-                        'message' => 'Segment does not exist'
                     ], 400); // HTTP 400 Bad Request
                 }
                 if (strpos($e->getMessage(), 'finish-pm') !== false) {
@@ -257,9 +248,6 @@ class ProductMasterController extends ResourceController
                 if (strpos($e->getMessage(), 'machine-pm') !== false) {
                     return $this->respond(['status' => false, 'message' => 'Machine does not exist'], 400);
                 }
-                if (strpos($e->getMessage(), 'segment-pm') !== false) {
-                    return $this->respond(['status' => false, 'message' => 'Segment does not exist'], 400);
-                }
                 if (strpos($e->getMessage(), 'finish-pm') !== false) {
                     return $this->respond(['status' => false, 'message' => 'Finish does not exist'], 400);
                 }
@@ -337,7 +325,6 @@ class ProductMasterController extends ResourceController
                     seg_2.name as seg2_name, 
                     seg_3.name as seg3_name, 
                     modules.name as module_name,
-                    segments.name as segment_name, 
                     finish.name as finish_name, 
                     groups.name as group_name')
             ->join('machines', 'machines.id = product_master.machine', 'inner')
@@ -345,18 +332,15 @@ class ProductMasterController extends ResourceController
             ->join('users as responsible', 'responsible.id = modules.responsible', 'left')
             ->join('seg_2', 'seg_2.id = product_master.seg2', 'left')
             ->join('seg_3', 'seg_3.id = product_master.seg3', 'left')
-            ->join('segments', 'segments.id = product_master.segment', 'left')
             ->join('finish', 'finish.id = product_master.finish', 'left')
             ->join('groups', 'groups.id = product_master.prod_group', 'left');
             // ->get()
             // ->getResultArray();
 
         // Safely get the values first and then trim
-        $order_number = isset($postData['order_number']) ? trim($postData['order_number']) : '';
         $material_number = isset($postData['material_number']) ? trim($postData['material_number']) : '';
         $machine = isset($postData['machine']) ? trim($postData['machine']) : '';
         $machine_module = isset($postData['machine_module']) ? trim($postData['machine_module']) : '';
-        $segment = isset($postData['segment']) ? trim($postData['segment']) : '';
 
         $cheese_wt = isset($postData['cheese_wt']) ? trim($postData['cheese_wt']) : '';
         $finish = isset($postData['finish']) ? trim($postData['finish']) : '';
@@ -378,9 +362,6 @@ class ProductMasterController extends ResourceController
         
 
         // // Apply conditions if not empty
-        if (!empty($order_number)) {
-            $builder->like('product_master.order_number', $order_number);
-        }
 
         if (!empty($material_number)) {
             $builder->like('product_master.material_number', $material_number);
@@ -392,10 +373,6 @@ class ProductMasterController extends ResourceController
 
         if (!empty($machine_module)) {
             $builder->where('modules.id', $machine_module);
-        }
-
-        if (!empty($segment)) {
-            $builder->where('segments.id', $segment);
         }
 
         if (!empty($cheese_wt)) {
@@ -510,7 +487,6 @@ class ProductMasterController extends ResourceController
                     seg_2.name as seg2_name, 
                     seg_3.name as seg3_name, 
                     modules.name as module_name,
-                    segments.name as segment_name, 
                     finish.name as finish_name, 
                     groups.name as group_name')
             ->join('machines', 'machines.id = product_master.machine', 'inner')
@@ -519,7 +495,6 @@ class ProductMasterController extends ResourceController
             ->join('users as responsible', 'responsible.id = modules.responsible', 'inner')
             ->join('seg_2', 'seg_2.id = product_master.seg2', 'left')
             ->join('seg_3', 'seg_3.id = product_master.seg3', 'left')
-            ->join('segments', 'segments.id = product_master.segment', 'left')
             ->join('finish', 'finish.id = product_master.finish', 'left')
             ->join('groups', 'groups.id = product_master.prod_group', 'left')
             ->where('product_master.material_number', $mat_num)
@@ -585,57 +560,51 @@ class ProductMasterController extends ResourceController
         $listSheet->setTitle('Dropdowns');
 
         // Add headers
-        $sheet->setCellValue('A1', 'Order');
-        $sheet->setCellValue('B1', 'Material Number');
-        $sheet->setCellValue('C1', 'Material Number Froging');
-        $sheet->setCellValue('D1', 'Material Description');
-        $sheet->setCellValue('E1', 'Machine Name');
-        $sheet->setCellValue('F1', 'Module');
-        $sheet->setCellValue('G1', 'Unit of Measure');
-        $sheet->setCellValue('H1', 'Seg-2');
-        $sheet->setCellValue('I1', 'Seg-3');
-        $sheet->setCellValue('J1', 'Product Size');
-        $sheet->setCellValue('K1', 'Product Group');
-        $sheet->setCellValue('L1', 'Product Length');
-        $sheet->setCellValue('M1', 'Finish');
-        $sheet->setCellValue('N1', 'Segment');
-        $sheet->setCellValue('O1', 'Finish Wt');
-        $sheet->setCellValue('P1', 'Cheese Wt');
-        $sheet->setCellValue('Q1', 'RM SPEC');
-        $sheet->setCellValue('R1', 'ROD DIA1');
-        $sheet->setCellValue('S1', 'DRAWN DIA1');
-        $sheet->setCellValue('T1', 'Special Remarks');
-        $sheet->setCellValue('U1', 'BOM');
-        $sheet->setCellValue('V1', 'RM Component');
-        $sheet->setCellValue('W1', 'Condition of Raw material');
+        $sheet->setCellValue('A1', 'Material Number');
+        $sheet->setCellValue('B1', 'Material Number Froging');
+        $sheet->setCellValue('C1', 'Material Description');
+        $sheet->setCellValue('D1', 'Machine Name');
+        $sheet->setCellValue('E1', 'Module');
+        $sheet->setCellValue('F1', 'Seg-2');
+        $sheet->setCellValue('G1', 'Seg-3');
+        $sheet->setCellValue('H1', 'Product Size');
+        $sheet->setCellValue('I1', 'Product Group');
+        $sheet->setCellValue('J1', 'Product Length');
+        $sheet->setCellValue('K1', 'Finish');
+        $sheet->setCellValue('L1', 'Finish Wt');
+        $sheet->setCellValue('M1', 'Cheese Wt');
+        $sheet->setCellValue('N1', 'RM SPEC');
+        $sheet->setCellValue('O1', 'ROD DIA1');
+        $sheet->setCellValue('P1', 'DRAWN DIA1');
+        $sheet->setCellValue('Q1', 'Special Remarks');
+        $sheet->setCellValue('R1', 'BOM');
+        $sheet->setCellValue('S1', 'RM Component');
+        $sheet->setCellValue('T1', 'Condition of Raw material');
 
         // Set minimum column widths
         $sheet->getColumnDimension('A')->setWidth(25);
         $sheet->getColumnDimension('B')->setWidth(25);
-        $sheet->getColumnDimension('C')->setWidth(25);
-        $sheet->getColumnDimension('D')->setWidth(40);
+        $sheet->getColumnDimension('C')->setWidth(40);
+        $sheet->getColumnDimension('D')->setWidth(20);
         $sheet->getColumnDimension('E')->setWidth(20);
         $sheet->getColumnDimension('F')->setWidth(20);
         $sheet->getColumnDimension('G')->setWidth(20);
         $sheet->getColumnDimension('H')->setWidth(20);
         $sheet->getColumnDimension('I')->setWidth(20);
         $sheet->getColumnDimension('J')->setWidth(20);
-        $sheet->getColumnDimension('K')->setWidth(20);
+        $sheet->getColumnDimension('J')->setWidth(20);
         $sheet->getColumnDimension('L')->setWidth(20);
         $sheet->getColumnDimension('M')->setWidth(20);
-        $sheet->getColumnDimension('N')->setWidth(20);
-        $sheet->getColumnDimension('O')->setWidth(20);
-        $sheet->getColumnDimension('P')->setWidth(20);
-        $sheet->getColumnDimension('Q')->setWidth(25);
-        $sheet->getColumnDimension('R')->setWidth(25);
+        $sheet->getColumnDimension('N')->setWidth(25);
+        $sheet->getColumnDimension('O')->setWidth(25);
+        $sheet->getColumnDimension('P')->setWidth(30);
+        $sheet->getColumnDimension('Q')->setWidth(40);
+        $sheet->getColumnDimension('R')->setWidth(30);
         $sheet->getColumnDimension('S')->setWidth(30);
-        $sheet->getColumnDimension('T')->setWidth(40);
-        $sheet->getColumnDimension('U')->setWidth(30);
-        $sheet->getColumnDimension('V')->setWidth(30);
-        $sheet->getColumnDimension('W')->setWidth(30);
+        $sheet->getColumnDimension('T')->setWidth(30);
         if (!empty($data)) {
-            $sheet->setCellValue('X1', 'Error Information');
-            $sheet->getColumnDimension('X')->setWidth(200); // End Date
+            $sheet->setCellValue('U1', 'Error Information');
+            $sheet->getColumnDimension('U')->setWidth(200); // End Date
         }
         // Freeze the first row
         $sheet->freezePane('A2');
@@ -645,7 +614,7 @@ class ProductMasterController extends ResourceController
         $spreadsheet->getDefaultStyle()->getProtection()->setLocked(Protection::PROTECTION_UNPROTECTED);
 
         // Lock header row (A1 to E1)
-        $sheet->getStyle('A1:W1')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+        $sheet->getStyle('A1:T1')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
 
         // Protect the sheet with optional password
         $sheet->getProtection()->setSheet(true);
@@ -703,17 +672,8 @@ class ProductMasterController extends ResourceController
             $finish_row++;
         }
 
-        // Dropdown options
-        $segments = $this->segmentsModel->select('name')->orderBy('name', 'asc')->findAll();
-        $segmentArr = array_column($segments, 'name');
-        $segments_row = 1;
-        foreach (array_merge(['Segments'], $segmentArr) as $item) {
-            $listSheet->setCellValue("G{$segments_row}", $item);
-            $segments_row++;
-        }
-
         // Lock header row (A1 to E1)
-        $listSheet->getStyle('A1:G1000')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
+        $listSheet->getStyle('A1:F1000')->getProtection()->setLocked(Protection::PROTECTION_PROTECTED);
 
         // Protect the sheet with optional password
         $listSheet->getProtection()->setSheet(true);
@@ -726,14 +686,13 @@ class ProductMasterController extends ResourceController
         //         '$seg3Arr' => $seg3Arr,
         //         '$groupArr' => $groupArr,
         //         '$finishArr' => $finishArr,
-        //         '$segmentArr' => $segmentArr,
         //     )
         // );
         // die();
 
         // Add validation for rows 2 to 100
         for ($rowIndex = 2; $rowIndex <= 1000; $rowIndex++) {
-            $sheet->getCell("E{$rowIndex}")->getDataValidation()
+            $sheet->getCell("D{$rowIndex}")->getDataValidation()
                 ->setType(DataValidation::TYPE_LIST)
                 ->setErrorStyle(DataValidation::STYLE_STOP)
                 ->setAllowBlank(true)
@@ -742,7 +701,7 @@ class ProductMasterController extends ResourceController
                 ->setShowDropDown(true)
                 ->setFormula1("=Dropdowns!A2:A" . ($machines_row));
 
-            $sheet->getCell("F{$rowIndex}")->getDataValidation()
+            $sheet->getCell("E{$rowIndex}")->getDataValidation()
                 ->setType(DataValidation::TYPE_LIST)
                 ->setErrorStyle(DataValidation::STYLE_STOP)
                 ->setAllowBlank(true)
@@ -751,7 +710,7 @@ class ProductMasterController extends ResourceController
                 ->setShowDropDown(true)
                 ->setFormula1("=Dropdowns!B2:B" . ($modules_row));
 
-            $sheet->getCell("H{$rowIndex}")->getDataValidation()
+            $sheet->getCell("F{$rowIndex}")->getDataValidation()
                 ->setType(DataValidation::TYPE_LIST)
                 ->setErrorStyle(DataValidation::STYLE_STOP)
                 ->setAllowBlank(true)
@@ -760,7 +719,7 @@ class ProductMasterController extends ResourceController
                 ->setShowDropDown(true)
                 ->setFormula1("=Dropdowns!C2:C" . ($seg2_row));
 
-            $sheet->getCell("I{$rowIndex}")->getDataValidation()
+            $sheet->getCell("G{$rowIndex}")->getDataValidation()
                 ->setType(DataValidation::TYPE_LIST)
                 ->setErrorStyle(DataValidation::STYLE_STOP)
                 ->setAllowBlank(true)
@@ -769,7 +728,7 @@ class ProductMasterController extends ResourceController
                 ->setShowDropDown(true)
                 ->setFormula1("=Dropdowns!D2:D" . ($seg3_row));
 
-            $sheet->getCell("K{$rowIndex}")->getDataValidation()
+            $sheet->getCell("I{$rowIndex}")->getDataValidation()
                 ->setType(DataValidation::TYPE_LIST)
                 ->setErrorStyle(DataValidation::STYLE_STOP)
                 ->setAllowBlank(true)
@@ -778,7 +737,7 @@ class ProductMasterController extends ResourceController
                 ->setShowDropDown(true)
                 ->setFormula1("=Dropdowns!E2:E" . ($group_row));
 
-            $sheet->getCell("M{$rowIndex}")->getDataValidation()
+            $sheet->getCell("K{$rowIndex}")->getDataValidation()
                 ->setType(DataValidation::TYPE_LIST)
                 ->setErrorStyle(DataValidation::STYLE_STOP)
                 ->setAllowBlank(true)
@@ -787,14 +746,6 @@ class ProductMasterController extends ResourceController
                 ->setShowDropDown(true)
                 ->setFormula1("=Dropdowns!F2:F" . ($finish_row));
 
-            $sheet->getCell("N{$rowIndex}")->getDataValidation()
-                ->setType(DataValidation::TYPE_LIST)
-                ->setErrorStyle(DataValidation::STYLE_STOP)
-                ->setAllowBlank(true)
-                ->setShowInputMessage(true)
-                ->setShowErrorMessage(true)
-                ->setShowDropDown(true)
-                ->setFormula1("=Dropdowns!G2:G" . ($segments_row));
         }
 
         $filename = 'ProductMasterTemplate';
@@ -816,30 +767,27 @@ class ProductMasterController extends ResourceController
                     return $ts ? ExcelDate::PHPToExcel($ts) : '';
                 };
 
-                $sheet->setCellValue("A{$rowNumber}", $v('order_no'));
-                $sheet->setCellValue("B{$rowNumber}", $v('material_number'));
-                $sheet->setCellValue("C{$rowNumber}", $v('material_number_froging'));
-                $sheet->setCellValue("D{$rowNumber}", $v('material_description'));
-                $sheet->setCellValue("E{$rowNumber}", $v('machine_name'));
-                $sheet->setCellValue("F{$rowNumber}", $v('module'));
-                $sheet->setCellValue("G{$rowNumber}", $v('uom'));
-                $sheet->setCellValue("H{$rowNumber}", $v('seg2'));
-                $sheet->setCellValue("I{$rowNumber}", $v('seg3'));
-                $sheet->setCellValue("J{$rowNumber}", $v('product_size'));
-                $sheet->setCellValue("K{$rowNumber}", $v('product_group'));
-                $sheet->setCellValue("L{$rowNumber}", $v('product_length'));
-                $sheet->setCellValue("M{$rowNumber}", $v('finish'));
-                $sheet->setCellValue("N{$rowNumber}", $v('segment'));
-                $sheet->setCellValue("O{$rowNumber}", $v('finish_wt'));
-                $sheet->setCellValue("P{$rowNumber}", $v('cheese_wt'));
-                $sheet->setCellValue("Q{$rowNumber}", $v('rm_spec'));
-                $sheet->setCellValue("R{$rowNumber}", $v('rod_dia1'));
-                $sheet->setCellValue("S{$rowNumber}", $v('drawn_dia1'));
-                $sheet->setCellValue("T{$rowNumber}", $v('special_remarks'));
-                $sheet->setCellValue("U{$rowNumber}", $v('bom'));
-                $sheet->setCellValue("V{$rowNumber}", $v('rm_component'));
-                $sheet->setCellValue("W{$rowNumber}", $v('condition_raw_material'));
-                $sheet->setCellValue("X{$rowNumber}", $v('error_json'));
+                $sheet->setCellValue("A{$rowNumber}", $v('material_number'));
+                $sheet->setCellValue("B{$rowNumber}", $v('material_number_froging'));
+                $sheet->setCellValue("C{$rowNumber}", $v('material_description'));
+                $sheet->setCellValue("D{$rowNumber}", $v('machine_name'));
+                $sheet->setCellValue("E{$rowNumber}", $v('module'));
+                $sheet->setCellValue("F{$rowNumber}", $v('seg2'));
+                $sheet->setCellValue("G{$rowNumber}", $v('seg3'));
+                $sheet->setCellValue("H{$rowNumber}", $v('product_size'));
+                $sheet->setCellValue("I{$rowNumber}", $v('product_group'));
+                $sheet->setCellValue("J{$rowNumber}", $v('product_length'));
+                $sheet->setCellValue("K{$rowNumber}", $v('finish'));
+                $sheet->setCellValue("L{$rowNumber}", $v('finish_wt'));
+                $sheet->setCellValue("M{$rowNumber}", $v('cheese_wt'));
+                $sheet->setCellValue("N{$rowNumber}", $v('rm_spec'));
+                $sheet->setCellValue("O{$rowNumber}", $v('rod_dia1'));
+                $sheet->setCellValue("P{$rowNumber}", $v('drawn_dia1'));
+                $sheet->setCellValue("Q{$rowNumber}", $v('special_remarks'));
+                $sheet->setCellValue("R{$rowNumber}", $v('bom'));
+                $sheet->setCellValue("S{$rowNumber}", $v('rm_component'));
+                $sheet->setCellValue("T{$rowNumber}", $v('condition_raw_material'));
+                $sheet->setCellValue("U{$rowNumber}", $v('error_json'));
 
                 $rowNumber++;
             }

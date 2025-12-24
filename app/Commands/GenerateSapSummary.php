@@ -263,7 +263,6 @@ class GenerateSapSummary extends BaseCommand
             'monthly_plan'                => $sap['monthly_plan'],
             'monthly_fix_plan'                => $sap['monthly_fix_plan'],
             'wom_plant'                     => $wom_plant,
-            'pm_order_number'               => $sap['orderNumber'],
             'unitOfMeasure_GMEIN'           => $sap['unitOfMeasure_GMEIN'],
             'batch'                         => $sap['batch'],
             'work_order'                    => $batch,

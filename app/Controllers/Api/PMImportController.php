@@ -58,28 +58,25 @@ class PMImportController extends ResourceController
             if (empty(array_filter($r, fn($v) => $v !== null && $v !== ''))) continue;
 
             $r = array_pad($r, 23, '');             // ensure A–W
-            [$order,$mat,$matF,$matDesc,$machine,$module,$uom,
-             $seg2,$seg3,$prodSize,$prodGroup,$prodLen,$finish,$segment,
+            [$mat,$matF,$matDesc,$machine,$module,
+             $seg2,$seg3,$prodSize,$prodGroup,$prodLen,$finish,
              $finishWt,$cheeseWt,$rmSpec,$rodDia,$drawnDia,$remarks,$bom,
              $rmComp,$condRM] = $r;
 
             $rows[] = [
                 'file_id'                  => $fileId,
                 'row_index'                => $idx + 1,
-                'order_no'                 => trim($order),
                 'material_number'          => trim($mat),
                 'material_number_froging'  => trim($matF),
                 'material_description'     => trim($matDesc),
                 'machine_name'             => trim($machine),
                 'module'                   => trim($module),
-                'uom'                      => trim($uom),
                 'seg2'                     => trim($seg2),
                 'seg3'                     => trim($seg3),
                 'product_size'             => trim($prodSize),
                 'product_group'            => trim($prodGroup),
                 'product_length'           => trim($prodLen),
                 'finish'                   => trim($finish),
-                'segment'                  => trim($segment),
                 'finish_wt'                => is_numeric($finishWt) ? number_format($finishWt, 2, '.', '') : null,
                 'cheese_wt'                => is_numeric($cheeseWt) ? number_format($cheeseWt, 5, '.', '') : null,
                 'rm_spec'                  => trim($rmSpec),

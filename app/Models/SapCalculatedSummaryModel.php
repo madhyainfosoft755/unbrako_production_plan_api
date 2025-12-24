@@ -18,7 +18,6 @@ class SapCalculatedSummaryModel extends Model
         'id',
     'sap_id',
     'sap_orderNumber',
-    'pm_order_number',
     'systemStatus',
     'orderQuantity_GMEIN',
     'deliveredQuantity_GMEIN',

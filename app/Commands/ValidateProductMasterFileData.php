@@ -109,20 +109,17 @@ class ValidateProductMasterFileData extends BaseCommand
                     $errs[] = ['id' => $row['id'], 'error_json' => json_encode($e)];
                 } else {
                     $dataForMain = [
-                        'order_number'          => $row['order_no'],
                         'material_number'   => $row['material_number'],
                         'material_number_for_process' => $row['material_number_froging'],
                         'material_description'    => $row['material_description'],
                         'machine'        => $refs['machine_name'][$row['machine_name']],
                         'machine_module'         => $refs['module'][$row['module']],
-                        'unit_of_measure'               => $row['uom'],
                         'seg2'           => $refs['seg2'][$row['seg2']],
                         'seg3'           => $refs['seg3'][$row['seg3']],
                         'size'      => $row['product_size'],
                         'prod_group'          => $refs['product_group'][$row['product_group']],
                         'length'    => $row['product_length'],
                         'finish'         => $refs['finish'][$row['finish']],
-                        'segment'        => $refs['segment'][$row['segment']],
                         'finish_wt'         => $row['finish_wt'],
                         'cheese_wt'         => $row['cheese_wt'],
                         'spec'           => $row['rm_spec'],
@@ -189,7 +186,6 @@ class ValidateProductMasterFileData extends BaseCommand
             'seg3'    => $map('seg_3'),
             'product_group'   => $map('groups'),
             'finish'  => $map('finish'),
-            'segment' => $map('segments'),
         ];
     }
 
@@ -198,16 +194,16 @@ class ValidateProductMasterFileData extends BaseCommand
         $e = [];
 
         $required = [
-            'order_no','material_number','material_description','machine_name',
-            'module','uom','seg2','seg3','product_size','product_group',
-            'product_length','finish','segment','finish_wt','cheese_wt'
+            'material_number','material_description','machine_name',
+            'module','seg2','seg3','product_size','product_group',
+            'product_length','finish','finish_wt','cheese_wt'
         ];
         foreach ($required as $f) {
-            if (trim($r[$f] ?? '') === '') $e[$f === 'uom' ? 'unit_of_measure' : $f] = 'Required';
+            if (trim($r[$f] ?? '') === '') $e[$f] = 'Required';
         }
 
         // FK checks
-        foreach (['machine_name','module','seg2','seg3','product_group','finish','segment'] as $fk) {
+        foreach (['machine_name','module','seg2','seg3','product_group','finish'] as $fk) {
             $val = $r[$fk];
             if ($val !== '' && !isset($ref[$fk][$val])) {
                 $e[$fk] = 'Not found';

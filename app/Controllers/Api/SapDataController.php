@@ -146,7 +146,7 @@ protected function dumpToTemp(string $filepath, int $fileId): void
 
         $r = array_pad($r, 13, '');
 
-        [$order, $mat, $desc, $plant, $oqty, $dqty, $cqty, $uom, $batch, $status, $startDate, $finishDate, $salesOrder] = $r;
+        [$order, $mat, $desc, $plant, $oqty, $dqty, $cqty, $batch, $uom, $status, $startDate, $finishDate, $salesOrder] = $r;
         // $orderQuantity     = is_numeric($oqty) ? (int)$oqty : 0;
         // $confirmedQuantity = is_numeric($cqty) ? (int)$cqty : 0;
         $rows[] = [
@@ -279,9 +279,9 @@ private function dmy_to_iso($value)
         $sheet->setCellValue('D1', 'Plant');
         $sheet->setCellValue('E1', 'Order quantity');
         $sheet->setCellValue('F1', 'Delivered quantity');
-        $sheet->setCellValue('G1', 'Confirmed quantity');
-        $sheet->setCellValue('H1', 'Unit of measure');
-        $sheet->setCellValue('I1', 'Batch');
+        $sheet->setCellValue('G1', 'Confirmed Yield Quantity');
+        $sheet->setCellValue('H1', 'Batch');
+        $sheet->setCellValue('I1', 'Unit of measure');
         $sheet->setCellValue('J1', 'System Status');
         $sheet->setCellValue('K1', 'Start date (sched)');
         $sheet->setCellValue('L1', 'Scheduled finish date');
@@ -348,8 +348,8 @@ private function dmy_to_iso($value)
         |  E -> Order quantity
         |  F -> Delivered quantity
         |  G -> Confirmed quantity
-        |  H -> Unit of measure
-        |  I -> Batch
+        |  H -> Batch
+        |  I -> Unit of measure
         |  J -> System Status
         |  K -> Start date (sched)
         |  L -> Scheduled finish date
@@ -378,8 +378,8 @@ private function dmy_to_iso($value)
                 $sheet->setCellValue("E{$rowNumber}", $v('order_quantity'));
                 $sheet->setCellValue("F{$rowNumber}", $v('delivered_quantity'));
                 $sheet->setCellValue("G{$rowNumber}", $v('confirmed_quantity'));
-                $sheet->setCellValue("H{$rowNumber}", $v('unit_of_measure'));
-                $sheet->setCellValue("I{$rowNumber}", $v('batch'));
+                $sheet->setCellValue("H{$rowNumber}", $v('batch'));
+                $sheet->setCellValue("I{$rowNumber}", $v('unit_of_measure'));
                 $sheet->setCellValue("J{$rowNumber}", $v('system_status'));
                 $sheet->setCellValue("K{$rowNumber}", $ymdToExcel($record['start_date'] ?? null));
                 $sheet->setCellValue("L{$rowNumber}", $ymdToExcel($record['scheduled_finish_date'] ?? null));
@@ -1092,7 +1092,7 @@ private function insertSapData($insertData)
 
         // Full list of fields from the table (excluding `id` and `created_at`)
         $fields = [
-            'sap_id', 'sap_orderNumber', 'pm_order_number', 'systemStatus',
+            'sap_id', 'sap_orderNumber', 'systemStatus',
             'orderQuantity_GMEIN', 'deliveredQuantity_GMEIN', 'confirmedQuantity_GMEIN',
             'monthly_plan', 'monthly_fix_plan', 'weekly_plan', 'materialNumber', 'materialDescription',
             'sap_plant', 'wom_plant', 'unitOfMeasure_GMEIN', 'batch', 'work_order',
