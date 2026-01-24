@@ -211,6 +211,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
 
     // reports
     $routes->post('get-segment-wise-data', 'SapDataController::getSegmentWiseData');
+    $routes->post('get-finish-wise-planning-data', 'SapDataController::getFinishWisePlanningData');
     $routes->post('get-seg3-wise-data', 'SapDataController::getSeg3WiseData');
     $routes->post('get-group-details-wise-data', 'SapDataController::getGroupDetailsWiseData');
     $routes->post('get-daily-output', 'SapDataController::getDailyOutputReport');

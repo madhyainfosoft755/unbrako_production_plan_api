@@ -1440,7 +1440,6 @@ private function insertSapData($insertData)
                 ];
             } else {
                 $success[] = [
-                    'orderNumber' => $partInfo['order_number'],
                     'plant' => $workOrder['plant'],
                     'batch' => $workOrder['work_order_db'],
                     'materialNumber'  => $partInfo['material_number'],
@@ -1465,7 +1464,18 @@ private function insertSapData($insertData)
 
         // Insert into SapDataModel
         $sapModel = new SapDataModel();
-        // $sapModel->insertBatch($success);
+        $sapModel->insertBatch($success);
+
+
+        $phpBinary = PHP_BINARY; // current php path
+        $spark = ROOTPATH . 'spark';
+
+        // Build command
+        $command = escapeshellcmd($phpBinary . ' ' . $spark . ' sap:generate-summary');
+        // print_r($spark . ' sap:gs
+        // $command = 'php ' . ROOTPATH . 'spark validate:sapfiledata ' . escapeshellarg($fileId);
+        $logfile = WRITEPATH . 'logs/cli_job_' . date('Ymd_His') . '.log';
+        exec("$command > $logfile 2>&1 &");
 
         return $this->respondCreated([
             'message' => 'Data inserted successfully.',
@@ -2050,6 +2060,134 @@ private function insertSapData($insertData)
 
         //     $data[$segment][$person] = $total;
         // }
+
+        // Optional: sort columns and rows
+        sort($columns);
+        sort($rows);
+
+        return $this->response->setJSON([
+            'columns' => $columns,
+            'rows' => $rows,
+            'data' => $data,
+            'filters' => [
+                'week_start' => $weekStart ?? $monday ?? null,
+                'week_end'   => $weekEnd ?? $saturday ?? null,
+                'month'      => $month ?? null,
+                'start_date'  => $fromDate ?? null,
+                'end_date'    => $toDate ?? null,
+            ],
+        ]);
+    }
+
+
+
+
+
+
+
+
+
+
+    public function getFinishWisePlanningData()
+    {
+        $model = new SapCalculatedSummaryModel();
+        $finishModel = new FinishModel();
+        $moduleModel = new ModulesModel();
+
+        // Get input filters (GET or POST)
+        $weekStart  = $this->request->getVar('week_start');
+        $weekEnd    = $this->request->getVar('week_end');
+        $month      = $this->request->getVar('month_full_year');
+        $fromDate   = $this->request->getVar('start_date');
+        $toDate     = $this->request->getVar('end_date');
+
+        // Build base query
+        $builder = $model->select('
+                scs.responsible_person_name,
+                scs.finish_name,
+                ROUND(SUM(scs.allocated_product_wt), 2) as total_wt
+            ')
+            ->from('sap_calculated_summary scs')
+            ->join('daily_module_shift_qty_update dmsu', 'dmsu.sap_id = scs.sap_id', 'left')
+            ->join('daily_module_shift_output dmso', 'dmso.id = dmsu.module_shift_id', 'left')
+            ->where('scs.responsible_person_name !=', '')
+            ->where('scs.responsible_person_name IS NOT NULL', null, false)
+            ->where('scs.finish_name !=', '')
+            ->where('scs.finish_name IS NOT NULL', null, false);
+
+        // Apply date filters dynamically
+        if (!empty($fromDate) && !empty($toDate)) {
+            // 3 Custom from–to range
+            $builder->where('dmso.date >=', $fromDate)
+                    ->where('dmso.date <=', $toDate);
+
+        } elseif (!empty($month)) {
+            // 2 Filter by month of current year
+            list($monthNum, $yearNum) = explode('/', $month);
+            $builder->where('MONTH(dmso.date)', (int)$monthNum)
+                    ->where('YEAR(dmso.date)', (int)$yearNum);
+
+        } elseif (!empty($weekStart) && !empty($weekEnd)) {
+            // 1 Week range provided
+            $builder->where('dmso.date >=', $weekStart)
+                    ->where('dmso.date <=', $weekEnd);
+
+        } else {
+            // Default: current week Monday → Saturday
+            $monday   = date('Y-m-d', strtotime('monday this week'));
+            $saturday = date('Y-m-d', strtotime('saturday this week'));
+
+            $builder->where('dmso.date >=', $monday)
+                    ->where('dmso.date <=', $saturday);
+        }
+
+        // Grouping
+        $builder->groupBy('scs.responsible_person_name, scs.finish_name');
+
+        // Execute query
+        $results = $builder->findAll();
+
+        // Step 1: Get all all_finish (rows)
+        $all_finish = $finishModel->select('id, name')->orderBy('name', 'ASC')->findAll();
+        $rows = array_column($all_finish, 'name');
+
+        // Step 2: Get all responsible persons (columns)
+        $persons = $moduleModel->select('DISTINCT(users.name) as responsible_person_name')
+                    ->join('users', 'users.id = modules.responsible', 'left')
+                    ->where('users.name !=', '')
+                    ->where('users.name IS NOT NULL', null, false)
+                    ->orderBy('users.name', 'ASC')
+                    ->findAll();
+
+        $columns = array_column($persons, 'responsible_person_name');
+
+        // Step 3: Initialize data with zeros
+        $data = [];
+        foreach ($rows as $finish) {
+            $data[$finish] = [];
+            foreach ($columns as $person) {
+                $data[$finish][$person] = 0;
+            }
+        }
+
+        // Step 4: Fill in actual results
+        foreach ($results as $row) {
+            $person = $row['responsible_person_name'];
+            $finish = $row['finish_name'];
+            $total = floatval($row['total_wt']);
+
+            if (isset($data[$finish][$person])) {
+                $data[$finish][$person] = $total;
+            } else {
+                // Add unexpected values if any exist in DB not in master tables
+                if (!isset($data[$finish])) {
+                    $data[$finish] = [];
+                }
+                $data[$finish][$person] = $total;
+                if (!in_array($finish, $rows)) $rows[] = $finish;
+                if (!in_array($person, $columns)) $columns[] = $person;
+            }
+        }
 
         // Optional: sort columns and rows
         sort($columns);

@@ -1210,7 +1210,9 @@ class AuthController extends ResourceController
             // Run command
             $output = [];
             $returnVar = 0;
-            exec($command . ' > $logfile 2>&1', $output, $returnVar);
+            $logfile = WRITEPATH . 'logs/cli_job_' . date('Ymd_His') . '.log';
+            exec("$command > $logfile 2>&1 &");
+            // exec($command . ' > $logfile 2>&1', $output, $returnVar);
 
             if ($returnVar !== 0) {
                 return $this->respond([

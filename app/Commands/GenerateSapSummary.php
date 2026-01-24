@@ -152,12 +152,14 @@ class GenerateSapSummary extends BaseCommand
         // Fetch the SAP record
         $sap = $db->table('sap_data')->where('id', $sapId)->get()->getRowArray();
         if (!$sap) return;
-
+        // CLI::error("SAP ROW - " . json_encode($sap, JSON_PRETTY_PRINT));
+        // CLI::error("Material Number - " . $sap['materialNumber']);
         // Derive work_order
         $batch = strtoupper(substr($sap['batch'], 0, 2)) === 'DB'
             ? substr($sap['batch'], 0, 6)
             : substr($sap['batch'], 0, 5);
-
+        
+        // CLI::error("BATCH — " . $batch);
         // Left join fetch
         $row = $db->table('product_master pm')
             ->select([
@@ -196,10 +198,11 @@ class GenerateSapSummary extends BaseCommand
             ->join('seg_3 seg3','seg3.id=pm.seg3','left')
             ->join('surface_treatment_process stp','stp.id=1','left')  // need to change
             ->join('users module_res','module_res.id=modules.responsible','left') 
-            ->where('pm.material_number_for_process', $sap['materialNumber']) 
+            ->where('pm.material_number', $sap['materialNumber']) 
             ->get()
             ->getRowArray();
 
+        // CLI::error("ROW - " . json_encode($row, JSON_PRETTY_PRINT));
         // Fallback if not found
         $row = $row ?? [
             'finish_wt' => 0, 'machine_module'=>null, 'per_eff'=>60, 'speed'=>50,
@@ -219,7 +222,6 @@ class GenerateSapSummary extends BaseCommand
 
         // Assign variables
         extract($row);
-
         $forged = intval($sap['forged_so_far'] ?? 0);
         $total_alloc = floatval($sap['rm_correction'] ?? 0) + floatval($sap['plan_allocation'] ?? 0);
         $mult = floatval($db->query("SELECT getModuleMultiplier(?) AS m", [$machine_module])->getRow()->m ?? 1.2);
