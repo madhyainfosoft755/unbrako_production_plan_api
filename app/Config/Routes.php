@@ -218,6 +218,8 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     $routes->get('get-plant-machine-booking', 'SapDataController::getPlantMachineBookingSummary');
     
 
+    $routes->post('upload-part-number-bulk', 'WOMImportController::uploadPartsNumberBulk');
+
 });
 
 // Open APIs
