@@ -107,7 +107,7 @@ class MachineController extends ResourceController
                 machines.name as machine_name,
                 m.id as module_id, m.name as module_name'
             )
-            ->join('product_master pm', 'pm.material_number_for_process = sap_data.materialNumber', 'left')
+            ->join('product_master pm', 'pm.material_number_for_process LIKE CONCAT(sap_data.materialNumber, "%")', 'left')
             ->join('machines', 'machines.id = pm.machine', 'left')
             ->join('modules m',          'm.id  = pm.machine_module', 'left')
 
