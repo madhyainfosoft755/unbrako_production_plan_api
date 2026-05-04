@@ -271,13 +271,14 @@ class SapDataModel extends Model
         ])->update();
 
         log_message('error', 'new updated data: '. json_encode($sapCalculatedModel->where('sap_id', $sapId)->findAll()) );
-        
-        // If forged_so_far changed, do recalculation
-        if ($this->oldData && (($this->oldData['forged_so_far'] != $newData['forged_so_far']) || 
+        $cond = $this->oldData && (($this->oldData['forged_so_far'] != $newData['forged_so_far']) || 
         ($this->oldData['to_forge_limit_inc'] != $newData['to_forge_limit_inc'])) || 
         ($this->oldData['rm_correction'] != $newData['rm_correction']) || 
         ($this->oldData['plan_allocation'] != $newData['plan_allocation']) || 
-        ($this->oldData['month_rm_total'] != $newData['month_rm_total'])) {
+        ($this->oldData['month_rm_total'] != $newData['month_rm_total']);
+        // log_message('error', 'condition: '. $cond );
+        // If forged_so_far changed, do recalculation
+        if ($cond) {
             $this->recalculateForgedSummary($sapId, $newData);
         }
 
@@ -293,7 +294,7 @@ class SapDataModel extends Model
         $db = \Config\Database::connect();
 
         // Example of fetching extra info from related tables
-        $query = $db->query("
+        $Q = "
             SELECT 
                 pm.machine_module AS machine_module,
                 IFNULL(pm.finish_wt, 0) AS finish_wt,
@@ -304,13 +305,16 @@ class SapDataModel extends Model
             FROM product_master pm
             LEFT JOIN machines mc ON mc.id = pm.machine
             LEFT JOIN modules m ON m.id=pm.machine_module   
-            WHERE pm.material_number_for_process = ?
-        ", [$data['materialNumber']]);
+            WHERE pm.material_number_for_process = 
+        ". $data['materialNumber'];
+        $query = $db->query($Q);
         // echo $data['materialNumber']; 
         $row = $query->getRowArray();
         // print_r($row);   die;
+        // log_message('error', 'query'. $Q );
+        // log_message('error', 'row'. json_encode($row) );
         if (!$row) return;
-
+        // log_message('error', 'Calculation starts: ');
         $finish_wt = $row['finish_wt'];
         $mult = floatval($db->query("SELECT getModuleMultiplier(?) AS m", $row['machine_module'])->getRow()->m ?? 1.2);
         $thisMonthForgeWt = ($data['forged_so_far'] * $finish_wt) / 1000;
