@@ -1,51 +1,4 @@
 <?php
-
-// namespace App\Models;
-
-// use CodeIgniter\Model;
-
-// class SapDataModel extends Model
-// {
-//     protected $table            = 'sap_data';
-//     protected $primaryKey       = 'id';
-//     protected $useAutoIncrement = true;
-//     protected $returnType       = 'array';
-//     protected $useSoftDeletes   = false;
-//     protected $protectFields    = true;
-//     protected $allowedFields    = [];
-
-//     protected bool $allowEmptyInserts = false;
-//     protected bool $updateOnlyChanged = true;
-
-//     protected array $casts = [];
-//     protected array $castHandlers = [];
-
-//     // Dates
-//     protected $useTimestamps = false;
-//     protected $dateFormat    = 'datetime';
-//     protected $createdField  = 'created_at';
-//     protected $updatedField  = 'updated_at';
-//     protected $deletedField  = 'deleted_at';
-
-//     // Validation
-//     protected $validationRules      = [];
-//     protected $validationMessages   = [];
-//     protected $skipValidation       = false;
-//     protected $cleanValidationRules = true;
-
-//     // Callbacks
-//     protected $allowCallbacks = true;
-//     protected $beforeInsert   = [];
-//     protected $afterInsert    = [];
-//     protected $beforeUpdate   = [];
-//     protected $afterUpdate    = [];
-//     protected $beforeFind     = [];
-//     protected $afterFind      = [];
-//     protected $beforeDelete   = [];
-//     protected $afterDelete    = [];
-// }
-
-
 namespace App\Models;
 
 
@@ -276,7 +229,7 @@ class SapDataModel extends Model
         ($this->oldData['rm_correction'] != $newData['rm_correction']) || 
         ($this->oldData['plan_allocation'] != $newData['plan_allocation']) || 
         ($this->oldData['month_rm_total'] != $newData['month_rm_total']);
-        // log_message('error', 'condition: '. $cond );
+        log_message('error', 'condition: '. $cond );
         // If forged_so_far changed, do recalculation
         if ($cond) {
             $this->recalculateForgedSummary($sapId, $newData);
@@ -311,10 +264,10 @@ class SapDataModel extends Model
         // echo $data['materialNumber']; 
         $row = $query->getRowArray();
         // print_r($row);   die;
-        // log_message('error', 'query'. $Q );
-        // log_message('error', 'row'. json_encode($row) );
+        log_message('error', 'query'. $Q );
+        log_message('error', 'row'. json_encode($row) );
         if (!$row) return;
-        // log_message('error', 'Calculation starts: ');
+        log_message('error', 'Calculation starts: ');
         $finish_wt = $row['finish_wt'];
         $mult = floatval($db->query("SELECT getModuleMultiplier(?) AS m", $row['machine_module'])->getRow()->m ?? 1.2);
         $thisMonthForgeWt = ($data['forged_so_far'] * $finish_wt) / 1000;
