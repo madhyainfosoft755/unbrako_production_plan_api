@@ -20,6 +20,7 @@ use App\Filters\UserAccessFilter;
 use App\Filters\MasterAccessFilter;
 use App\Filters\ViewerAccessFilter;
 use App\Filters\RolePermissionFilter;
+use App\Filters\ApiTimeRestriction;
 
 class Filters extends BaseFilters
 {
@@ -42,6 +43,7 @@ class Filters extends BaseFilters
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
+        'timeRestriction' => ApiTimeRestriction::class,
         'shield_auth' => ShieldAuthFilter::class,
 
         'admin_access' => AdminAccessFilter::class,
@@ -85,6 +87,9 @@ class Filters extends BaseFilters
      */
     public array $globals = [
         'before' => [
+            'timeRestriction' => ['except' => [
+                '/',
+            ]],
             // 'honeypot',
             // 'csrf',
             // 'invalidchars',
@@ -119,5 +124,14 @@ class Filters extends BaseFilters
      *
      * @var array<string, array<string, list<string>>>
      */
-    public array $filters = [];
+    public array $filters = [
+        // apply time restriction filter to all API routes starting with 'api/'
+        // 'timeRestriction' => [
+        //     'before' => [
+        //         'api/*',
+        //         'api/*/*',
+        //         'api/*/*/*',
+        //     ]
+        // ],
+    ];
 }
