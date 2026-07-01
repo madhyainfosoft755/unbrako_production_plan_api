@@ -127,6 +127,7 @@ class MachineController extends ResourceController
         
         $machine_name        = isset($postData['machine_name']) ? trim($postData['machine_name']) : '';
         $materialNumber      = isset($postData['materialNumber']) ? trim($postData['materialNumber']) : '';
+        $batch      = isset($postData['batch']) ? trim($postData['batch']) : '';
         $materialDescription = isset($postData['materialDescription']) ? trim($postData['materialDescription']) : '';
         $to_forge_qty        = isset($postData['to_forge_qty']) ? trim($postData['to_forge_qty']) : '';
         
@@ -136,6 +137,10 @@ class MachineController extends ResourceController
 
         if (!empty($materialNumber)) {
             $builder->like('sap_data.materialNumber', $materialNumber, 'after'); // starts with
+        }
+
+        if (!empty($batch)) {
+            $builder->like('sap_data.batch', $batch, 'after'); // starts with
         }
 
         if (!empty($materialDescription)) {

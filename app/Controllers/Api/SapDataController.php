@@ -1872,31 +1872,38 @@ private function insertSapData($insertData)
         // 3 Build the query using the model’s builder
         $builder = $sapCalculatedSummaryModel->builder('sap_calculated_summary AS s');
         $builder->select("
-            s.id AS sap_id,
+            s.id AS id,
+            s.sap_id AS sap_id,
+            s.batch AS work_order,
             s.materialNumber,
             s.materialDescription,
             s.module_responsible_person_name,
             s.module_name,
             s.seg2_name,
+            q.id AS qty_update_id,
+            q.production_qty,
+            q.module_shift_id,
             SUM(q.production_qty) AS total_production_qty,
             ROUND(SUM(q.production_qty) * getModuleMultiplier(q.module_id), 3) AS total_production_wt,
-
-             SUM(CASE WHEN dmso.date = '$date' THEN q.production_qty ELSE 0 END) AS today_qty,
+            SUM(CASE WHEN dmso.date = '$date' THEN q.production_qty ELSE 0 END) AS today_qty,
             ROUND(SUM(CASE WHEN dmso.date = '$date' THEN q.production_qty ELSE 0 END) * getModuleMultiplier(q.module_id), 3) AS today_wt
         ")
+        
         ->join('daily_module_shift_qty_update AS q', 's.sap_id = q.sap_id', 'left')
         ->join('daily_module_shift_output AS dmso', 'q.module_shift_id = dmso.id', 'left')
         ->where('Month(dmso.date)', date('m', strtotime($date)))
         ->where('dmso.is_permanent', 1)
         ->groupBy([
-            's.module_responsible_person_name',
-            's.module_name',
-            's.seg2_name'
-        ])
+            'q.sap_id',
+            ])
+            // 's.module_responsible_person_name',
+            // 's.module_name',
+            // 's.seg2_name'
         ->orderBy('s.module_responsible_person_name, s.module_name, s.seg2_name');
 
         $result = $builder->get()->getResultArray();
-        
+        // echo "<pre>";
+        // print_r($result); die();
         // 4 Group the data hierarchically
         $grouped = [];
         foreach ($result as $row) {
