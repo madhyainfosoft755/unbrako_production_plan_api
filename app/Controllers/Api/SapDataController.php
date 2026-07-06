@@ -2215,6 +2215,42 @@ private function insertSapData($insertData)
     }
 
 
+    public function updateForgeQtyNull(){
+        $data = $this->request->getJSON(true);
+        $sapId = $data['sap_id'];
+        $remarks = $data['remarks'];
+        $sapDataModel = new SapDataModel();
+
+        $sapData = $sapDataModel->find($sapId);
+
+        if (!$sapData) {
+            return $this->respond([
+                'status' => 404,
+                'message' => "Row with ID $sapId not found."
+            ], 404);
+        }
+
+        if(trim($remarks) === ''){
+            return $this->respond([
+                'status'  => 'error',
+                'message' => 'Remarks required!'
+            ], 400);
+        } else {
+            $row =  array(
+                "to_forge_qty" => 0,
+                "special_remarks"=>trim($remarks)
+            );
+            $sapDataModel->update($sapId, $row);
+            return $this->respond([
+                'status'  => 'success',
+                'message' => 'Update successfully.'
+            ], 200);
+        }
+
+
+    }
+
+
 }
 
 ?>

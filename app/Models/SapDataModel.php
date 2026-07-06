@@ -226,6 +226,7 @@ class SapDataModel extends Model
         log_message('error', 'new updated data: '. json_encode($sapCalculatedModel->where('sap_id', $sapId)->findAll()) );
         $cond = $this->oldData && (($this->oldData['forged_so_far'] != $newData['forged_so_far']) || 
         ($this->oldData['to_forge_limit_inc'] != $newData['to_forge_limit_inc'])) || 
+        ($this->oldData['to_forge_qty'] != $newData['to_forge_qty']) || 
         ($this->oldData['rm_correction'] != $newData['rm_correction']) || 
         ($this->oldData['plan_allocation'] != $newData['plan_allocation']) || 
         ($this->oldData['month_rm_total'] != $newData['month_rm_total']);

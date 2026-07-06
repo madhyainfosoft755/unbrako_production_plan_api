@@ -219,6 +219,7 @@ $routes->group("api", ["namespace" => "App\Controllers\Api", "filter" => ["shiel
     
 
     $routes->post('upload-part-number-bulk', 'WOMImportController::uploadPartsNumberBulk');
+    $routes->post('update-forge-qty-null', 'SapDataController::updateForgeQtyNull');
 
 });
 

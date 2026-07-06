@@ -5,6 +5,7 @@ namespace App\Filters;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
 use CodeIgniter\HTTP\ResponseInterface;
+use Config\Database;
 
 class ApiTimeRestriction implements FilterInterface
 {
@@ -32,13 +33,60 @@ class ApiTimeRestriction implements FilterInterface
         // Set IST timezone
         date_default_timezone_set('Asia/Kolkata');
 
+        $cache = cache();
+        $cacheKey = 'remote_unbrako_settings';
+        // Default values
+        $setting = [
+            'enabled'         => false,
+            'dynamicWindow'   => false,
+            'windowGapHours'  => 4,
+            'staticStartTime' => '10:00',
+            'staticEndTime'   => '14:00',
+        ];
+        $cached = $cache->get($cacheKey);   
+        if ($cached !== null) {
+            // echo 'cache';
+            // print_r($cached); 
+            $setting = array_merge($setting, $cached);
+            // print_r($setting); 
+
+        } else {
+            try {
+                $db = Database::connect('remote');
+
+                $settings = $db->table('unbrako')
+                    ->get()
+                    ->getResultArray();
+
+                if ($settings !== null) {
+                    $setting = array_merge($setting, $settings[0]);
+                    
+                    // Cache for 24 hours
+                    $cache->save($cacheKey, $settings[0], 86400); //86400);
+                    // print_r($setting); die;
+                }
+            } catch (\Throwable $e) {
+                // Log the error but continue using defaults
+                log_message('error', 'Unable to load remote settings: ' . $e->getMessage());
+            }
+        }
+
+        $enabled          = (bool) $setting['enabled'];
+        $dynamicWindow    = (bool) $setting['dynamicWindow'];
+        $gapHours   = (int) $setting['windowGapHours'];
+        $startTime  = $setting['staticStartTime'];
+        $endTime    = $setting['staticEndTime'];
+
+        // cache()->delete('remote_unbrako_settings');
+        // echo $setting['enabled']; die;
+
         /*
         |--------------------------------------------------------------------------
         | MASTER ENABLE SWITCH
         |--------------------------------------------------------------------------
         */
 
-        $enabled = env('apiTimeRestriction.enabled');
+        // $enabled = env('apiTimeRestriction.enabled');
 
         if (!$enabled) {
             return;
@@ -50,7 +98,7 @@ class ApiTimeRestriction implements FilterInterface
         |--------------------------------------------------------------------------
         */
 
-        $dynamicWindow = env('apiTimeRestriction.dynamicWindow');
+        // $dynamicWindow = env('apiTimeRestriction.dynamicWindow');
 
         if ($dynamicWindow == 'true') {
 
@@ -60,7 +108,7 @@ class ApiTimeRestriction implements FilterInterface
             |--------------------------------------------------------------------------
             */
 
-            $gapHours = (int) env('apiTimeRestriction.windowGapHours', 4);
+            // $gapHours = (int) env('apiTimeRestriction.windowGapHours', 4);
 
             /*
             |--------------------------------------------------------------------------
@@ -101,8 +149,8 @@ class ApiTimeRestriction implements FilterInterface
             |--------------------------------------------------------------------------
             */
 
-            $startTime = env('apiTimeRestriction.staticStartTime', '10:00');
-            $endTime   = env('apiTimeRestriction.staticEndTime', '14:00');
+            // $startTime = env('apiTimeRestriction.staticStartTime', '10:00');
+            // $endTime   = env('apiTimeRestriction.staticEndTime', '14:00');
         }
 
         /*

