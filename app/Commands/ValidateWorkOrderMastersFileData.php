@@ -234,19 +234,19 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
         // if (!is_numeric($row['weight']))       $e['weight'] = 'Must be decimal';
         // numeric + whole‑number check
         $items = trim($row['no_of_items'] ?? '');
-        if (!($items === '' || $items === NULL) && !ctype_digit($items)) {
+        if (($items === '' || $items === NULL) && !ctype_digit($items)) {
             $e['no_of_items'] = 'Must be a whole number';
         }
 
-        $weight = trim($row['weight'] ?? '');
-        if ($weight !== '' && !is_numeric($weight)) {
-            $e['weight'] = 'Must be a valid number';
-        }
+        // $weight = trim($row['weight'] ?? '');
+        // if ($weight !== '' && !is_numeric($weight)) {
+        //     $e['weight'] = 'Must be a valid number';
+        // }
 
         // decimal check
-        // if (!($row['weight'] === '' || $row['weight'] === NULL) && !is_numeric($row['weight'])) {
-        //     $e['weight'] = 'Must be decimal';
-        // }
+        if (($row['weight'] === '' || $row['weight'] === NULL) && !is_numeric($row['weight'])) {
+            $e['weight'] = 'Must be decimal';
+        }
 
         return $e;
     }
