@@ -238,10 +238,15 @@ class ValidateWorkOrderMastersFileData extends BaseCommand
             $e['no_of_items'] = 'Must be a whole number';
         }
 
-        // decimal check
-        if (!($row['weight'] === '' || $row['weight'] === NULL) && !is_numeric($row['weight'])) {
-            $e['weight'] = 'Must be decimal';
+        $weight = trim($row['weight'] ?? '');
+        if ($weight !== '' && !is_numeric($weight)) {
+            $e['weight'] = 'Must be a valid number';
         }
+
+        // decimal check
+        // if (!($row['weight'] === '' || $row['weight'] === NULL) && !is_numeric($row['weight'])) {
+        //     $e['weight'] = 'Must be decimal';
+        // }
 
         return $e;
     }
