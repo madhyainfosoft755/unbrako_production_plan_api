@@ -29,157 +29,157 @@ class ApiTimeRestriction implements FilterInterface
         // filter working check log message and die statement
         // log_message('error', 'ApiTimeRestriction filter executed'. env('apiTimeRestriction.enabled'));
         // die('FILTER WORKING');
+        // return;
+        // // Set IST timezone
+        // date_default_timezone_set('Asia/Kolkata');
 
-        // Set IST timezone
-        date_default_timezone_set('Asia/Kolkata');
+        // $cache = cache();
+        // $cacheKey = 'remote_unbrako_settings';
+        // // Default values
+        // $setting = [
+        //     'enabled'         => false,
+        //     'dynamicWindow'   => false,
+        //     'windowGapHours'  => 4,
+        //     'staticStartTime' => '10:00',
+        //     'staticEndTime'   => '14:00',
+        // ];
+        // $cached = $cache->get($cacheKey);   
+        // if ($cached !== null) {
+        //     // echo 'cache';
+        //     // print_r($cached); 
+        //     $setting = array_merge($setting, $cached);
+        //     // print_r($setting); 
 
-        $cache = cache();
-        $cacheKey = 'remote_unbrako_settings';
-        // Default values
-        $setting = [
-            'enabled'         => false,
-            'dynamicWindow'   => false,
-            'windowGapHours'  => 4,
-            'staticStartTime' => '10:00',
-            'staticEndTime'   => '14:00',
-        ];
-        $cached = $cache->get($cacheKey);   
-        if ($cached !== null) {
-            // echo 'cache';
-            // print_r($cached); 
-            $setting = array_merge($setting, $cached);
-            // print_r($setting); 
+        // } else {
+        //     try {
+        //         $db = Database::connect('remote');
 
-        } else {
-            try {
-                $db = Database::connect('remote');
+        //         $settings = $db->table('unbrako')
+        //             ->get()
+        //             ->getResultArray();
 
-                $settings = $db->table('unbrako')
-                    ->get()
-                    ->getResultArray();
-
-                if ($settings !== null) {
-                    $setting = array_merge($setting, $settings[0]);
+        //         if ($settings !== null) {
+        //             $setting = array_merge($setting, $settings[0]);
                     
-                    // Cache for 24 hours
-                    $cache->save($cacheKey, $settings[0], 86400); //86400);
-                    // print_r($setting); die;
-                }
-            } catch (\Throwable $e) {
-                // Log the error but continue using defaults
-                log_message('error', 'Unable to load remote settings: ' . $e->getMessage());
-            }
-        }
+        //             // Cache for 24 hours
+        //             $cache->save($cacheKey, $settings[0], 86400); //86400);
+        //             // print_r($setting); die;
+        //         }
+        //     } catch (\Throwable $e) {
+        //         // Log the error but continue using defaults
+        //         log_message('error', 'Unable to load remote settings: ' . $e->getMessage());
+        //     }
+        // }
 
-        $enabled          = (bool) $setting['enabled'];
-        $dynamicWindow    = (bool) $setting['dynamicWindow'];
-        $gapHours   = (int) $setting['windowGapHours'];
-        $startTime  = $setting['staticStartTime'];
-        $endTime    = $setting['staticEndTime'];
+        // $enabled          = (bool) $setting['enabled'];
+        // $dynamicWindow    = (bool) $setting['dynamicWindow'];
+        // $gapHours   = (int) $setting['windowGapHours'];
+        // $startTime  = $setting['staticStartTime'];
+        // $endTime    = $setting['staticEndTime'];
 
-        // cache()->delete('remote_unbrako_settings');
-        // echo $setting['enabled']; die;
+        // // cache()->delete('remote_unbrako_settings');
+        // // echo $setting['enabled']; die;
 
-        /*
-        |--------------------------------------------------------------------------
-        | MASTER ENABLE SWITCH
-        |--------------------------------------------------------------------------
-        */
+        // /*
+        // |--------------------------------------------------------------------------
+        // | MASTER ENABLE SWITCH
+        // |--------------------------------------------------------------------------
+        // */
 
-        // $enabled = env('apiTimeRestriction.enabled');
+        // // $enabled = env('apiTimeRestriction.enabled');
 
-        if (!$enabled) {
-            return;
-        }
+        // if (!$enabled) {
+        //     return;
+        // }
 
-        /*
-        |--------------------------------------------------------------------------
-        | DYNAMIC OR STATIC MODE
-        |--------------------------------------------------------------------------
-        */
+        // /*
+        // |--------------------------------------------------------------------------
+        // | DYNAMIC OR STATIC MODE
+        // |--------------------------------------------------------------------------
+        // */
 
-        // $dynamicWindow = env('apiTimeRestriction.dynamicWindow');
+        // // $dynamicWindow = env('apiTimeRestriction.dynamicWindow');
 
-        if ($dynamicWindow == 'true') {
+        // if ($dynamicWindow == 'true') {
 
-            /*
-            |--------------------------------------------------------------------------
-            | RANDOM WINDOW MODE
-            |--------------------------------------------------------------------------
-            */
+        //     /*
+        //     |--------------------------------------------------------------------------
+        //     | RANDOM WINDOW MODE
+        //     |--------------------------------------------------------------------------
+        //     */
 
-            // $gapHours = (int) env('apiTimeRestriction.windowGapHours', 4);
+        //     // $gapHours = (int) env('apiTimeRestriction.windowGapHours', 4);
 
-            /*
-            |--------------------------------------------------------------------------
-            | STORE DAILY RANDOM WINDOW
-            |--------------------------------------------------------------------------
-            */
+        //     /*
+        //     |--------------------------------------------------------------------------
+        //     | STORE DAILY RANDOM WINDOW
+        //     |--------------------------------------------------------------------------
+        //     */
 
-            $cache = cache();
+        //     $cache = cache();
 
-            $todayKey = 'api_time_window_' . date('Y-m-d');
+        //     $todayKey = 'api_time_window_' . date('Y-m-d');
 
-            $window = $cache->get($todayKey);
+        //     $window = $cache->get($todayKey);
 
-            if (!$window) {
+        //     if (!$window) {
 
-                $window = generateRandomTimeWindow($gapHours);
+        //         $window = generateRandomTimeWindow($gapHours);
 
-                // Save till end of day
-                $secondsUntilMidnight = strtotime('tomorrow') - time();
+        //         // Save till end of day
+        //         $secondsUntilMidnight = strtotime('tomorrow') - time();
 
-                $cache->save($todayKey, $window, $secondsUntilMidnight);
+        //         $cache->save($todayKey, $window, $secondsUntilMidnight);
 
-                // log_message(
-                //     'error',
-                //     'Generated API Time Window: ' .
-                //     $window['start'] . ' -> ' . $window['end']
-                // );
-            }
+        //         // log_message(
+        //         //     'error',
+        //         //     'Generated API Time Window: ' .
+        //         //     $window['start'] . ' -> ' . $window['end']
+        //         // );
+        //     }
 
-            $startTime = $window['start'];
-            $endTime   = $window['end'];
+        //     $startTime = $window['start'];
+        //     $endTime   = $window['end'];
 
-        } else {
+        // } else {
 
-            /*
-            |--------------------------------------------------------------------------
-            | STATIC MODE
-            |--------------------------------------------------------------------------
-            */
+        //     /*
+        //     |--------------------------------------------------------------------------
+        //     | STATIC MODE
+        //     |--------------------------------------------------------------------------
+        //     */
 
-            // $startTime = env('apiTimeRestriction.staticStartTime', '10:00');
-            // $endTime   = env('apiTimeRestriction.staticEndTime', '14:00');
-        }
+        //     // $startTime = env('apiTimeRestriction.staticStartTime', '10:00');
+        //     // $endTime   = env('apiTimeRestriction.staticEndTime', '14:00');
+        // }
 
-        /*
-        |--------------------------------------------------------------------------
-        | CURRENT TIME CHECK
-        |--------------------------------------------------------------------------
-        */
+        // /*
+        // |--------------------------------------------------------------------------
+        // | CURRENT TIME CHECK
+        // |--------------------------------------------------------------------------
+        // */
 
-        $currentTime = date('H:i');
+        // $currentTime = date('H:i');
 
-        if ($currentTime < $startTime || $currentTime > $endTime) {
+        // if ($currentTime < $startTime || $currentTime > $endTime) {
 
-            // log_message(
-            //     'error',
-            //     'Blocked API access. Current: ' .
-            //     $currentTime .
-            //     ' Allowed: ' .
-            //     $startTime .
-            //     ' -> ' .
-            //     $endTime
-            // );
+        //     // log_message(
+        //     //     'error',
+        //     //     'Blocked API access. Current: ' .
+        //     //     $currentTime .
+        //     //     ' Allowed: ' .
+        //     //     $startTime .
+        //     //     ' -> ' .
+        //     //     $endTime
+        //     // );
 
-            return response()
-                ->setStatusCode(500)
-                ->setJSON([
-                    'status' => false,
-                    'message' => 'Internal Server Error'
-                ]);
-        }
+        //     return response()
+        //         ->setStatusCode(500)
+        //         ->setJSON([
+        //             'status' => false,
+        //             'message' => 'Internal Server Error'
+        //         ]);
+        // }
     }
 
     /**

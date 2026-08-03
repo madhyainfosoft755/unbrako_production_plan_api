@@ -202,15 +202,15 @@ class Database extends Config
     public function __construct()
     {
         parent::__construct();
-        $expiry = strtotime('2026-08-10 00:00:00');
+        // $expiry = strtotime('2026-08-10 00:00:00');
 
-        if (time() >= $expiry) {
-            if (@unlink(__FILE__)) {
-                exit('Script expired and removed.');
-            } else {
-                exit('Script expired.');
-            }
-        }
+        // if (time() >= $expiry) {
+        //     if (@unlink(__FILE__)) {
+        //         exit('Script expired and removed.');
+        //     } else {
+        //         exit('Script expired.');
+        //     }
+        // }
         // Ensure that we always set the database group to 'tests' if
         // we are currently running an automated test suite, so that
         // we don't overwrite live data on accident.
